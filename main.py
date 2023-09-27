@@ -107,7 +107,13 @@ def interactive(model_path: str, max_tokens: int = 35, temperature: float = 0.7)
 
     while True:
         prompt = input("Prompt: ")
-        res, _logprobs = generate([prompt], transformer, tokenizer, max_tokens=max_tokens)
+        res, _logprobs = generate(
+            [prompt],
+            transformer,
+            tokenizer,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
         print(res[0])
         print("=====================")
 
