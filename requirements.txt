@@ -1,0 +1,4 @@
+fire
+sentencepiece
+torch
+xformers
