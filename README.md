@@ -1,7 +1,8 @@
 # Mistral Transformer
 
-This repository contains minimal code to run our 7B model.
-[Discord](https://discord.com/invite/mistralai)
+This repository contains minimal code to run our 7B model.\
+Blog: [https://mistral.ai/news/announcing-mistral-7b/](https://mistral.ai/news/announcing-mistral-7b/)\
+Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistralai)
 
 ## Installation
 
@@ -9,17 +10,27 @@ This repository contains minimal code to run our 7B model.
 pip install -r requirements.txt
 ```
 
+## Download the model
+```
+wget https://files.mistral-7b-v0-1.mistral.ai/mistral-7B-v0.1.tar
+tar -xf mistral-7B-v0.1.tar
+```
+
 ## Run the model
 
 ```
-python -m main demo /path/to/model 
+python -m main demo /path/to/mistral-7B-v0.1/
 # To give your own prompts
-python -m main interactive /path/to/model 
+python -m main interactive /path/to/mistral-7B-v0.1/
+```
+Change `temperature` or `max_tokens` using:
+```
+python -m main interactive /path/to/mistral-7B-v0.1/ --max_tokens 256 --temperature 1.0
 ```
 
 If you want a self-contained implementation, look at `one_file_ref.py`, or run it with 
 ```
-python -m one_file_ref /path/to/model 
+python -m one_file_ref /path/to/mistral-7B-v0.1/
 
 This is a test of the emergency broadcast system. This is only a test.
 
@@ -87,6 +98,10 @@ For this we can choose as chunk size the window size. For each chunk, we thus ne
 
 ![Chunking](assets/chunking.png)
 
+
+## More Links
+
+[Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1) and [Mistral-7B-Instruct-v0.1](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1) are also available on HuggingFace.
 
 ## References
 

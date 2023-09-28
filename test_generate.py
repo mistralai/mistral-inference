@@ -59,6 +59,8 @@ def test_generation():
     for lp_old, lp_new in zip(all_logprobs_old, all_logprobs_new):
         assert all([abs(x - y) < 1e-5 for x, y in zip(lp_old, lp_new)]), f"\n{lp_old}\n{lp_new}"
 
+    print("All tests passed.")
+
 
 def test_chunks():
     torch.manual_seed(42)
