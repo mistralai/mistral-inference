@@ -28,12 +28,38 @@ class RotatingCacheInputMetadata:
     seqlens: List[int]
 
 
-def interleave_list(l1: List[torch.Tensor], l2: List[torch.Tensor]):
+def interleave_list(l1: List[torch.Tensor], l2: List[torch.Tensor]) -> List[torch.Tensor]:
+    """
+    Interleaves two lists of tensors element-wise.
+
+    Args:
+        l1 (List[torch.Tensor]): The first list of tensors.
+        l2 (List[torch.Tensor]): The second list of tensors.
+
+    Returns:
+        List[torch.Tensor]: A new list containing elements interleaved from l1 and l2.
+
+    Raises:
+        AssertionError: If the input lists l1 and l2 have different lengths.
+    """
     assert len(l1) == len(l2)
     return [v for pair in zip(l1, l2) for v in pair]
 
 
 def unrotate(cache: torch.Tensor, seqlen: int) -> torch.Tensor:
+    """
+    Unrotates a 3D tensor along the first dimension.
+
+    Args:
+        cache (torch.Tensor): A 3D tensor of shape (W, H, D).
+        seqlen (int): The desired length of the output tensor.
+
+    Returns:
+        torch.Tensor: A new tensor obtained by unrotating the input tensor along the first dimension.
+
+    Raises:
+        AssertionError: If the input tensor cache doesn't have three dimensions (W, H, D).
+    """
     assert cache.ndim == 3  # (W, H, D)
     position = seqlen % cache.shape[0]
     if seqlen < cache.shape[0]:
@@ -44,8 +70,27 @@ def unrotate(cache: torch.Tensor, seqlen: int) -> torch.Tensor:
         return torch.cat([cache[position:], cache[:position]], dim=0)
 
 
+
 class CacheView:
-    def __init__(self, cache_k: torch.Tensor, cache_v: torch.Tensor, metadata: RotatingCacheInputMetadata, kv_seqlens: torch.Tensor):
+    """
+    A class for managing a cache of keys and values with associated metadata.
+    """
+    def __init__(
+        self, 
+        cache_k: torch.Tensor, 
+        cache_v: torch.Tensor, 
+        metadata: RotatingCacheInputMetadata, 
+        kv_seqlens: torch.Tensor
+    ):
+        """
+        Initialize a CacheView instance.
+
+        Args:
+            cache_k (torch.Tensor): The cache for keys.
+            cache_v (torch.Tensor): The cache for values.
+            metadata (RotatingCacheInputMetadata): Metadata about the cache.
+            kv_seqlens (torch.Tensor): The sequence lengths for keys and values.
+        """
         self.cache_k = cache_k
         self.cache_v = cache_v
         self.kv_seqlens = kv_seqlens
@@ -54,6 +99,12 @@ class CacheView:
     def update(self, xk: torch.Tensor, xv: torch.Tensor):
         """
         to_cache_mask masks the last [sliding_window] tokens in each sequence
+
+        Update the cache with new keys and values.
+
+        Args:
+            xk (torch.Tensor): New keys to update the cache.
+            xv (torch.Tensor): New values to update the cache.
         """
         n_kv_heads, head_dim = self.cache_k.shape[-2:]
         flat_cache_k = self.cache_k.view(-1, n_kv_heads, head_dim)
@@ -65,6 +116,15 @@ class CacheView:
     def interleave_kv(self, xk: torch.Tensor, xv: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         This is a naive implementation and not optimized for speed.
+
+        Interleave keys and values from the cache with new keys and values.
+
+        Args:
+            xk (torch.Tensor): New keys to interleave.
+            xv (torch.Tensor): New values to interleave.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: Interleaved keys and values.
         """
         assert xk.ndim == xv.ndim == 3 # (B * T, H, D)
         assert xk.shape == xv.shape
@@ -114,7 +174,14 @@ class RotatingBufferCache:
     Allocated cache is rectangular which is wasteful (see PagedAttention for better mechanisms)
     """
     def __init__(self, n_layers: int, max_batch_size: int, sliding_window: int, n_kv_heads: int, head_dim: int):
-
+        """
+        Args:
+            n_layers (int): The number of layers.
+            max_batch_size (int): The maximum batch size.
+            sliding_window (int): The size of the sliding window for the cache.
+            n_kv_heads (int): The number of key-value heads.
+            head_dim (int): The dimension of the heads.
+        """
         self.sliding_window = sliding_window
         self.n_kv_heads = n_kv_heads
         self.head_dim = head_dim
@@ -137,6 +204,16 @@ class RotatingBufferCache:
         self.kv_seqlens = None
 
     def get_view(self, layer_id: int, metadata: RotatingCacheInputMetadata) -> CacheView:
+        """
+        Get a CacheView instance associated with a layer and metadata.
+
+        Args:
+            layer_id (int): The layer ID.
+            metadata (RotatingCacheInputMetadata): Metadata for the cache.
+
+        Returns:
+            CacheView: A CacheView instance.
+        """
         return CacheView(self.cache_k[layer_id], self.cache_v[layer_id], metadata, self.kv_seqlens)
 
     def reset(self):
@@ -168,7 +245,16 @@ class RotatingBufferCache:
             - positions = [0 1 2 3 4 | 1 2 3 4 5 6 7 | 3 4]
             --> cache positions are positions cache_masked, modulo sliding_window + batch_idx * sliding_window
             - cache_positions = [2 0 1 | 5 3 4 | 6 7]
+        
+        Generate input metadata for cache operations based on sequence lengths.
+
+        Args:
+            seqlens (List[int]): The list of sequence lengths.
+
+        Returns:
+            RotatingCacheInputMetadata: Metadata for cache operations.
         """
+
         if self.kv_seqlens is None:
             self.init_kvseqlens(len(seqlens))
         assert len(seqlens) == len(self.kv_seqlens), f"Batch size is {len(self.kv_seqlens)}, got {len(seqlens)}, did you forget to reset cache?"

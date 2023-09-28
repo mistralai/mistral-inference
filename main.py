@@ -9,6 +9,19 @@ from mistral.tokenizer import Tokenizer
 
 
 def sample_top_p(probs: torch.Tensor, p: float):
+    """
+    Sample from the top-p distribution of probabilities.
+
+    Args:
+        probs (torch.Tensor): A tensor of probabilities.
+        p (float): The threshold for selecting tokens.
+
+    Returns:
+        torch.Tensor: The selected token(s).
+
+    Raises:
+        AssertionError: If p is not in the range [0, 1].
+    """
     assert 0 <= p <= 1
 
     probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
@@ -21,6 +34,22 @@ def sample_top_p(probs: torch.Tensor, p: float):
 
 
 def sample(logits: torch.Tensor, temperature: float, top_p: float):
+    """
+    Sample from the softmax distribution of logits with optional temperature and top-p filtering.
+
+    Args:
+        logits (torch.Tensor): A tensor of logits.
+        temperature (float): Temperature for controlling the sampling randomness.
+        top_p (float): The threshold for selecting tokens.
+
+    Returns:
+        torch.Tensor: The selected token(s).
+
+    Notes:
+        If temperature > 0, softmax sampling with temperature is applied.
+        If temperature = 0, greedy sampling is used.
+
+    """
     if temperature > 0:
         probs = torch.softmax(logits / temperature, dim=-1)
         next_token = sample_top_p(probs, top_p)
@@ -31,7 +60,32 @@ def sample(logits: torch.Tensor, temperature: float, top_p: float):
 
 
 @torch.inference_mode()
-def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, max_tokens: int, chunk_size: int = None, temperature: float = 0.7):
+def generate(
+    prompts: List[str], 
+    model: Transformer, 
+    tokenizer: Tokenizer,
+    *, 
+    max_tokens: int,
+    chunk_size: int = None,
+    temperature: float = 0.7
+):
+    """
+    Generate text based on given prompts using a Transformer model.
+
+    Args:
+        prompts (List[str]): A list of text prompts.
+        model (Transformer): The Transformer model.
+        tokenizer (Tokenizer): The tokenizer for encoding and decoding text.
+        max_tokens (int): The maximum number of tokens to generate.
+        chunk_size (int, optional): The size of chunks for encoding prompts.
+        temperature (float, optional): The sampling temperature.
+
+    Returns:
+        Tuple[List[str], List[List[float]]]: A tuple containing:
+            - List[str]: Generated text based on prompts.
+            - List of List[float]: Log probabilities for each generated token.
+
+    """
     model = model.eval()
     B, V = len(prompts), model.args.vocab_size
 
@@ -41,7 +95,13 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, ma
 
     # Cache
     cache_window = min(model.args.sliding_window, max(seqlens) + max_tokens)
-    cache = RotatingBufferCache(model.args.n_layers, model.args.max_batch_size, cache_window, model.args.n_kv_heads, model.args.head_dim)
+    cache = RotatingBufferCache(
+        model.args.n_layers, 
+        model.args.max_batch_size, 
+        cache_window, 
+        model.args.n_kv_heads, 
+        model.args.head_dim
+    )
     cache.to(device=model.device, dtype=model.dtype)
     cache.reset()
     
@@ -102,6 +162,15 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, ma
 
 
 def interactive(model_path: str, max_tokens: int = 35, temperature: float = 0.7):
+    """
+    Interactively generate text based on user prompts using a Transformer model.
+
+    Args:
+        model_path (str): The path to the model directory.
+        max_tokens (int, optional): The maximum number of tokens to generate for each prompt.
+        temperature (float, optional): The sampling temperature.
+
+    """
     tokenizer = Tokenizer(str(Path(model_path) / "tokenizer.model"))
     transformer = Transformer.from_folder(Path(model_path), max_batch_size=3)
 
@@ -112,6 +181,15 @@ def interactive(model_path: str, max_tokens: int = 35, temperature: float = 0.7)
         print("=====================")
 
 def demo(model_path: str, max_tokens: int = 35, temperature: float = 0):
+    """
+    Demonstrate text generation using a Transformer model with predefined prompts.
+
+    Args:
+        model_path (str): The path to the model directory.
+        max_tokens (int, optional): The maximum number of tokens to generate for each prompt.
+        temperature (float, optional): The sampling temperature.
+
+    """
     tokenizer = Tokenizer(str(Path(model_path) / "tokenizer.model"))
     transformer = Transformer.from_folder(Path(model_path), max_batch_size=3)
 
