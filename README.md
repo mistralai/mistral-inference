@@ -4,6 +4,17 @@ This repository contains minimal code to run our 7B model.\
 Blog: [https://mistral.ai/news/announcing-mistral-7b/](https://mistral.ai/news/announcing-mistral-7b/)\
 Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistralai)
 
+## Deployment
+
+The `deploy` folder contains code to build a [vLLM](https://github.com/vllm-project/vllm) image with the required dependencies to serve the Mistral AI model. In the image, the [transformers](https://github.c
+ggingface/transformers/) library is used instead of the reference implementation. To build it:
+
+```bash
+docker build deploy --build-arg MAX_JOBS=8
+```
+
+Instructions to run the image can be found in the [official documentation](https://docs.mistral.ai/quickstart).
+
 ## Installation
 
 ```
