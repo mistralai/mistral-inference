@@ -41,7 +41,7 @@ def test_generation():
         n_heads=4,
         n_kv_heads=2,
         sliding_window=3,
-        norm_eps=1e-6,
+        norm_eps=1e-5,
         vocab_size=32_000,
         max_batch_size=len(sequences),
     )
@@ -74,7 +74,7 @@ def test_chunks():
         n_heads=4,
         n_kv_heads=2,
         sliding_window=4,
-        norm_eps=1e-6,
+        norm_eps=1e-5,
         vocab_size=32_000,
         max_batch_size=3,
     )
