@@ -6,8 +6,7 @@ Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistr
 
 ## Deployment
 
-The `deploy` folder contains code to build a [vLLM](https://github.com/vllm-project/vllm) image with the required dependencies to serve the Mistral AI model. In the image, the [transformers](https://github.c
-ggingface/transformers/) library is used instead of the reference implementation. To build it:
+The `deploy` folder contains code to build a [vLLM](https://github.com/vllm-project/vllm) image with the required dependencies to serve the Mistral AI model. In the image, the [transformers](https://github.com/huggingface/transformers/) library is used instead of the reference implementation. To build it:
 
 ```bash
 docker build deploy --build-arg MAX_JOBS=8
@@ -112,7 +111,7 @@ For this we can choose as chunk size the window size. For each chunk, we thus ne
 
 ## More Links
 
-[Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1) and [Mistral-7B-Instruct-v0.1](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1) are also available on HuggingFace.
+[Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1) and [Mistral-7B-Instruct-v0.1](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1) are also available on Hugging Face.
 
 ## References
 
