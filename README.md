@@ -3,6 +3,8 @@
 This repository contains minimal code to run our 7B model.\
 Blog: [https://mistral.ai/news/announcing-mistral-7b/](https://mistral.ai/news/announcing-mistral-7b/)\
 Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistralai)
+Documentation: [https://docs.mistral.ai/](https://docs.mistral.ai/)
+Guardrailing: [https://docs.mistral.ai/usage/guardrailing](https://docs.mistral.ai/usage/guardrailing)
 
 ## Deployment
 
@@ -136,8 +138,6 @@ For this we can choose as chunk size the window size. For each chunk, we thus ne
 
 - [OpenOrca](https://huggingface.co/Open-Orca/Mistral-7B-OpenOrca)
 - and many more !
-
- and  are also available on Hugging Face.
 
 ## References
 
