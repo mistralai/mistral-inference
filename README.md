@@ -2,8 +2,8 @@
 
 This repository contains minimal code to run our 7B model.\
 Blog: [https://mistral.ai/news/announcing-mistral-7b/](https://mistral.ai/news/announcing-mistral-7b/)\
-Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistralai)
-Documentation: [https://docs.mistral.ai/](https://docs.mistral.ai/)
+Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistralai)\
+Documentation: [https://docs.mistral.ai/](https://docs.mistral.ai/)\
 Guardrailing: [https://docs.mistral.ai/usage/guardrailing](https://docs.mistral.ai/usage/guardrailing)
 
 ## Deployment
