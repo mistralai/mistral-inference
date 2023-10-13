@@ -14,7 +14,7 @@ RUN apt update && \
 ENV TORCH_CUDA_ARCH_LIST "7.0;7.2;7.5;8.0;8.6;8.9;9.0"
 
 # We have to manually install Torch otherwise apex & xformers won't build
-RUN pip3 install torch==2.2.0.dev20231013+cu118 --index-url https://download.pytorch.org/whl/nightly/cu118
+RUN pip3 install "torch==2.2.0.dev20231013+cu118" --index-url https://download.pytorch.org/whl/nightly/cu118
 
 # This build is slow but NVIDIA does not provide binaries. Increase MAX_JOBS as needed.
 RUN git clone https://github.com/NVIDIA/apex && \
