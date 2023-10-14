@@ -130,6 +130,7 @@ For this we can choose as chunk size the window size. For each chunk, we thus ne
 - Use Mistral 7B in [Dust](https://dust.tt/)
 - Speak to Mistral AI Instruct on [Perplexity labs](https://labs.perplexity.ai/) (warning: deployed version is not [guardrailed](https://docs.mistral.ai/usage/guardrailing)) 
 
+
 ### Local deployment
 - [Ollama](https://ollama.ai/library/mistral) local deployment
 - [GGML](https://github.com/ggerganov/ggml) local deployment
