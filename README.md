@@ -123,7 +123,6 @@ For this we can choose as chunk size the window size. For each chunk, we thus ne
 - Use Mistral 7B on [Vertex AI](https://github.com/GoogleCloudPlatform/vertex-ai-samples/blob/main/notebooks/community/model_garden/model_garden_pytorch_mistral.ipynb)
 - Use Mistral 7B on [Replicate](https://replicate.com/lucataco/mistral-7b-v0.1)
 
-
 ### Applications
 
 - Compare Mistral 7B to Llama 13B on [LLMBoxing](https://llmboxing.com/)
