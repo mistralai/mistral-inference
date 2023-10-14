@@ -126,7 +126,7 @@ For this we can choose as chunk size the window size. For each chunk, we thus ne
 ### Applications
 
 - Compare Mistral 7B to Llama 13B on [LLMBoxing](https://llmboxing.com/)
-- Compare Mistral 7B to 10+ LLMs on [Chatbot Arena](https://chat.lmsys.org/)
+- Compare Mistral 7B to 10+ LLMs on [Chatbot Arena](https://chat.lmsys.org/) or host it yourself with [FastChat](https://github.com/lm-sys/FastChat) 
 - Use Mistral 7B in [Dust](https://dust.tt/)
 - Speak to Mistral AI Instruct on [Perplexity labs](https://labs.perplexity.ai/) (warning: deployed version is not [guardrailed](https://docs.mistral.ai/usage/guardrailing)) 
 
