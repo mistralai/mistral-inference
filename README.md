@@ -129,7 +129,8 @@ For this we can choose as chunk size the window size. For each chunk, we thus ne
 - Compare Mistral 7B to Llama 13B on [LLMBoxing](https://llmboxing.com/)
 - Use Mistral 7B in [Dust](https://dust.tt/)
 - Speak to Mistral AI Instruct on [Perplexity labs](https://labs.perplexity.ai/) (warning: deployed version is not [guardrailed](https://docs.mistral.ai/usage/guardrailing)) 
-
+- Use Mistral 7B in [Quivr](https://blog.quivr.app/is-mistral-a-good-replacement-for-openai/)
+- Use Mistral 7B or its Zephyr derivate on [LlamaIndex](https://docs.llamaindex.ai/en/stable/core_modules/model_modules/llms/root.html#open-source-llms)
 
 ### Local deployment
 - [Ollama](https://ollama.ai/library/mistral) local deployment
@@ -138,14 +139,11 @@ For this we can choose as chunk size the window size. For each chunk, we thus ne
 
 ### Derived models
 
-- Multimodal: BakLLaVa-1
-https://huggingface.co/SkunkworksAI/BakLLaVA-1
+- Multimodal: [BakLLaVa-1](https://huggingface.co/SkunkworksAI/BakLLaVA-1)
 
-Model fine-tuned on direct preferences
-https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha
+- Model fine-tuned on direct preferences: [Zephyr-7B-alpha](https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha)
 
-Model fine-tuned on generated data
-- [OpenOrca](https://huggingface.co/Open-Orca/Mistral-7B-OpenOrca)
+- Model fine-tuned on generated data: [OpenOrca](https://huggingface.co/Open-Orca/Mistral-7B-OpenOrca)
 
 
 ## References
