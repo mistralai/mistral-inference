@@ -11,6 +11,7 @@ from mistral.tokenizer import Tokenizer
 def sample_top_p(probs: torch.Tensor, p: float):
     assert 0 <= p <= 1
 
+    # Sort probabilities and select tokens using top-p sampling
     probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
     probs_sum = torch.cumsum(probs_sort, dim=-1)
     mask = probs_sum - probs_sort > p
@@ -22,6 +23,7 @@ def sample_top_p(probs: torch.Tensor, p: float):
 
 def sample(logits: torch.Tensor, temperature: float, top_p: float):
     if temperature > 0:
+        # Apply temperature to the logits and perform top-p sampling
         probs = torch.softmax(logits / temperature, dim=-1)
         next_token = sample_top_p(probs, top_p)
     else:
@@ -35,28 +37,28 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, ma
     model = model.eval()
     B, V = len(prompts), model.args.vocab_size
 
-    # Tokenize
+    # Tokenize prompts
     encoded_prompts = [tokenizer.encode(prompt, bos=True) for prompt in prompts]
     seqlens = [len(x) for x in encoded_prompts]
 
-    # Cache
+    # Initialize cache
     cache_window = min(model.args.sliding_window, max(seqlens) + max_tokens)
     cache = RotatingBufferCache(model.args.n_layers, model.args.max_batch_size, cache_window, model.args.n_kv_heads, model.args.head_dim)
     cache.to(device=model.device, dtype=model.dtype)
     cache.reset()
-    
-    # Bookkeeping
+
+    # Initialize variables for log probabilities and last token prelogits
     logprobs = [[] for _ in range(B)]
     last_token_prelogits = None
 
-    # One chunk if size not specified
+    # Use one chunk if size is not specified
     max_prompt_len = max(seqlens)
     if chunk_size is None:
         chunk_size = max_prompt_len
 
-    # Encode prompt by chunks
+    # Encode prompts by chunks
     for s in range(0, max_prompt_len, chunk_size):
-        prompt_chunks = [p[s:s+chunk_size] for p in encoded_prompts]
+        prompt_chunks = [p[s:s + chunk_size] for p in encoded_prompts]
         assert all(len(p) > 0 for p in prompt_chunks)
         prelogits = model.forward(
             torch.tensor(sum(prompt_chunks, []), device=model.device, dtype=torch.long),
@@ -66,7 +68,6 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, ma
         logits = torch.log_softmax(prelogits, dim=-1)
 
         if last_token_prelogits is not None:
-            # Pass > 1
             last_token_logits = torch.log_softmax(last_token_prelogits, dim=-1)
             for i_seq in range(B):
                 logprobs[i_seq].append(last_token_logits[i_seq, prompt_chunks[i_seq][0]].item())
@@ -79,7 +80,7 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, ma
         last_token_prelogits = prelogits.index_select(0, torch.tensor([len(p) for p in prompt_chunks], device=prelogits.device).cumsum(dim=0) - 1)
         assert last_token_prelogits.shape == (B, V)
 
-    # decode
+    # Decode and generate text
     generated_tokens = []
     for i_token in range(max_tokens):
         next_token = sample(last_token_prelogits, temperature=temperature, top_p=0.8)
@@ -102,7 +103,7 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, ma
 
 
 def interactive(model_path: str, max_tokens: int = 35, temperature: float = 0.7):
-    tokenizer = Tokenizer(str(Path(model_path) / "tokenizer.model"))
+    tokenizer = Tokenizer(str(Path(model_path) / "tokenizer.model")
     transformer = Transformer.from_folder(Path(model_path), max_batch_size=3)
 
     while True:
@@ -117,8 +118,9 @@ def interactive(model_path: str, max_tokens: int = 35, temperature: float = 0.7)
         print(res[0])
         print("=====================")
 
+
 def demo(model_path: str, max_tokens: int = 35, temperature: float = 0):
-    tokenizer = Tokenizer(str(Path(model_path) / "tokenizer.model"))
+    tokenizer = Tokenizer(str(Path(model_path) / "tokenizer.model")
     transformer = Transformer.from_folder(Path(model_path), max_batch_size=3)
 
     res, _logprobs = generate(
@@ -135,6 +137,7 @@ def demo(model_path: str, max_tokens: int = 35, temperature: float = 0):
     for x in res:
         print(x)
         print("=====================")
+
 
 if __name__ == "__main__":
     fire.Fire({
