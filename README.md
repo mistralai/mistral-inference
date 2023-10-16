@@ -138,8 +138,15 @@ For this we can choose as chunk size the window size. For each chunk, we thus ne
 
 ### Derived models
 
+- Multimodal: BakLLaVa-1
+https://huggingface.co/SkunkworksAI/BakLLaVA-1
+
+Model fine-tuned on direct preferences
+https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha
+
+Model fine-tuned on generated data
 - [OpenOrca](https://huggingface.co/Open-Orca/Mistral-7B-OpenOrca)
-- and many more !
+
 
 ## References
 
