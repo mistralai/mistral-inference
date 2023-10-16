@@ -123,6 +123,7 @@ For this we can choose as chunk size the window size. For each chunk, we thus ne
 - Use Mistral 7B on [Vertex AI](https://github.com/GoogleCloudPlatform/vertex-ai-samples/blob/main/notebooks/community/model_garden/model_garden_pytorch_mistral.ipynb)
 - Use Mistral 7B on [Replicate](https://replicate.com/lucataco/mistral-7b-v0.1)
 - Use Mistral 7B on [Sagemaker Jumpstart](https://aws.amazon.com/blogs/machine-learning/mistral-7b-foundation-models-from-mistral-ai-are-now-available-in-amazon-sagemaker-jumpstart/)
+- Use Mistral 7B on [Baseten](https://app.baseten.co/explore/)
 
 ### Applications
 
