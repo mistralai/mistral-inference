@@ -192,7 +192,7 @@ class Transformer(nn.Module):
     def device(self) -> torch.device:
         return self.tok_embeddings.weight.device
 
-    def forward(
+    def forward_partial(
         self,
         input_ids: torch.Tensor,
         cache: RotatingBufferCache,
@@ -210,7 +210,17 @@ class Transformer(nn.Module):
 
         cache.update_seqlens(seqlens)
 
-        return self.output(self.norm(h)).float()
+        return self.norm(h)
+
+    def forward(
+        self,
+        input_ids: torch.Tensor,
+        cache: RotatingBufferCache,
+        seqlens: List[int],
+    ) -> torch.Tensor:
+        return self.output(self.forward_partial(
+            input_ids, cache, seqlens
+        )).float()
 
     @staticmethod
     def from_folder(folder: Path, max_batch_size: int = 1, device="cuda", dtype=torch.float16) -> "Transformer":
