@@ -24,6 +24,17 @@ class ModelArgs:
 
 
 def repeat_kv(keys: torch.Tensor, values: torch.Tensor, repeats: int):
+    """
+    Repeat the keys and values tensors along a specified dimension.
+
+    Args:
+        keys (torch.Tensor): The tensor containing keys to be repeated.
+        values (torch.Tensor): The tensor containing values to be repeated.
+        repeats (int): The number of times to repeat the tensors.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: A tuple containing the repeated keys and values tensors.
+    """
     keys = torch.repeat_interleave(keys, repeats=repeats, dim=2)
     values = torch.repeat_interleave(values, repeats=repeats, dim=2)
     return keys, values
@@ -31,8 +42,17 @@ def repeat_kv(keys: torch.Tensor, values: torch.Tensor, repeats: int):
 
 def _reshape_for_broadcast(freqs_cis: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     """
+    Reshape the frequency values for broadcasting.
+
     freqs_cis: complex - (seq_len, head_dim / 2)
     x: complex - (bsz, seq_len, head_dim / 2)
+
+    Args:
+        freqs_cis (torch.Tensor): Complex-valued frequency values.
+        x (torch.Tensor): Complex-valued tensor to be broadcasted.
+
+    Returns:
+        torch.Tensor: The reshaped frequency values for broadcasting.
     """
     ndim = x.ndim
     assert 1 < ndim
@@ -49,6 +69,17 @@ def apply_rotary_emb(
     xk: torch.Tensor,
     freqs_cis: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Apply rotary position embeddings to input tensors.
+
+    Args:
+        xq (torch.Tensor): Query tensor.
+        xk (torch.Tensor): Key tensor.
+        freqs_cis (torch.Tensor): Precomputed frequency values.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: Tuple containing the modified query and key tensors.
+    """
     xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
     xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
     freqs_cis = _reshape_for_broadcast(freqs_cis, xq_)
@@ -110,6 +141,18 @@ class Attention(nn.Module):
     def forward(
         self, x: torch.Tensor, freqs_cis: torch.Tensor, positions: torch.Tensor, mask: Optional[torch.Tensor]
     ) -> torch.Tensor:
+        """
+        Forward pass of the Attention module.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+            freqs_cis (torch.Tensor): Precomputed frequency values.
+            positions (torch.Tensor): Positions tensor.
+            mask (Optional[torch.Tensor]): Attention mask.
+
+        Returns:
+            torch.Tensor: Output tensor.
+        """
         
         bsz, seqlen, _ = x.shape
 
@@ -300,6 +343,19 @@ class Tokenizer:
 
 @torch.no_grad()
 def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, max_tokens: int):
+    """
+    Generate text based on given prompts using a Transformer model.
+
+    Args:
+        prompts (List[str]): A list of input text prompts.
+        model (Transformer): The Transformer model to generate text.
+        tokenizer (Tokenizer): The tokenizer used to encode and decode text.
+        max_tokens (int): The maximum number of tokens to generate.
+
+    Returns:
+        List[str]: A list of generated text corresponding to each input prompt.
+        torch.Tensor: Log probabilities of generated tokens.
+    """
     encoded_prompts = [tokenizer.encode(prompt) for prompt in prompts]
     prompt_lens = [len(x) for x in encoded_prompts]
     min_prompt_len = min(prompt_lens)
@@ -344,6 +400,13 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, max_t
 
 
 def demo(model_path: str, max_tokens: int = 35):
+    """
+    Run a demo using a pretrained Transformer model to generate text based on prompts.
+
+    Args:
+        model_path (str): The path to the folder containing the pretrained model.
+        max_tokens (int): The maximum number of tokens to generate for each prompt.
+    """
     tokenizer = Tokenizer(str(Path(model_path) / "tokenizer.model"))
     transformer = Transformer.from_folder(Path(model_path), max_batch_size=3)
 

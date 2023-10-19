@@ -3,6 +3,17 @@ from typing import Tuple
 
 
 def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0) -> torch.Tensor:
+    """
+    Precompute frequency values for rotary position embeddings.
+
+    Args:
+        dim (int): The dimensionality of the frequency values.
+        end (int): The end value for precomputation.
+        theta (float, optional): A constant scaling factor. Defaults to 10000.0.
+
+    Returns:
+        torch.Tensor: Precomputed frequency values.
+    """
     freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
     t = torch.arange(end, device=freqs.device)  # type: ignore
     freqs = torch.outer(t, freqs).float()  # type: ignore
@@ -14,6 +25,17 @@ def apply_rotary_emb(
     xk: torch.Tensor,
     freqs_cis: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Apply rotary position embeddings to input tensors.
+
+    Args:
+        xq (torch.Tensor): Query tensor.
+        xk (torch.Tensor): Key tensor.
+        freqs_cis (torch.Tensor): Precomputed frequency values.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: Tuple containing the modified query and key tensors.
+    """
     xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
     xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
     freqs_cis = freqs_cis[:, None, :]

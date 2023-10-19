@@ -43,12 +43,30 @@ class SimpleInputMetadata:
 
 
 def repeat_kv(keys: torch.Tensor, values: torch.Tensor, repeats: int, dim: int):
+    """
+    Repeat keys and values along a specified dimension.
+
+    Args:
+        keys (torch.Tensor): The keys tensor to repeat.
+        values (torch.Tensor): The values tensor to repeat.
+        repeats (int): The number of times to repeat.
+        dim (int): The dimension along which to repeat.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: Repeated keys and values.
+    """
     keys = torch.repeat_interleave(keys, repeats=repeats, dim=dim)
     values = torch.repeat_interleave(values, repeats=repeats, dim=dim)
     return keys, values
 
 
 class Attention(nn.Module):
+    """
+    A multi-head attention module.
+
+    Args:
+        args (ModelArgs): Model configuration arguments.
+    """
     def __init__(self, args: ModelArgs):
         super().__init__()
         self.args = args
@@ -88,6 +106,17 @@ class Attention(nn.Module):
         freqs_cis: torch.Tensor,
         cache: Optional[CacheView],
     ) -> torch.Tensor:
+        """
+        Forward pass of the multi-head attention module.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+            freqs_cis (torch.Tensor): Circular positional encodings.
+            cache (CacheView): Cache view for storing and retrieving keys and values.
+
+        Returns:
+            torch.Tensor: Output tensor.
+        """
         seqlen_sum, _ = x.shape
 
         xq, xk, xv = self.wq(x), self.wk(x), self.wv(x)
@@ -118,6 +147,12 @@ class Attention(nn.Module):
 
 
 class FeedForward(nn.Module):
+    """
+    A feedforward neural network module.
+
+    Args:
+        args (ModelArgs): Model configuration arguments.
+    """
     def __init__(self, args: ModelArgs):
         super().__init__()
 
@@ -138,10 +173,26 @@ class FeedForward(nn.Module):
         )
 
     def forward(self, x) -> torch.Tensor:
+        """
+        Forward pass of the feedforward network.
+
+        Args:
+            x: Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor.
+        """
         return self.w2(nn.functional.silu(self.w1(x)) * self.w3(x))
 
 
 class RMSNorm(torch.nn.Module):
+    """
+    Root Mean Square Layer Normalization module.
+
+    Args:
+        dim (int): The dimension of the input tensor.
+        eps (float, optional): A small value to prevent division by zero. Defaults to 1e-6.
+    """
     def __init__(self, dim: int, eps: float = 1e-6):
         super().__init__()
         self.eps = eps
@@ -151,11 +202,26 @@ class RMSNorm(torch.nn.Module):
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
     def forward(self, x):
+        """
+        Forward pass of the RMSNorm module.
+
+        Args:
+            x: Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor.
+        """
         output = self._norm(x.float()).type_as(x)
         return output * self.weight
 
 
 class TransformerBlock(nn.Module):
+    """
+    A single transformer block.
+
+    Args:
+        args (ModelArgs): Model configuration arguments.
+    """
     def __init__(self, args: ModelArgs):
         super().__init__()
         self.n_heads = args.n_heads
@@ -169,6 +235,17 @@ class TransformerBlock(nn.Module):
     def forward(
         self, x: torch.Tensor, freqs_cis: torch.Tensor, cache: Optional[CacheView]
     ) -> torch.Tensor:
+        """
+        Forward pass of the transformer block.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+            freqs_cis (torch.Tensor): Circular positional encodings.
+            cache (CacheView): Cache view for storing and retrieving keys and values.
+
+        Returns:
+            torch.Tensor: Output tensor.
+        """
         r = self.attention.forward(self.attention_norm(x), freqs_cis, cache)
         h = x + r
         r = self.feed_forward.forward(self.ffn_norm(h))
@@ -177,6 +254,12 @@ class TransformerBlock(nn.Module):
 
 
 class Transformer(nn.Module):
+    """
+    A Transformer model.
+
+    Args:
+        args (ModelArgs): Model configuration arguments.
+    """
     def __init__(self, args: ModelArgs):
         super().__init__()
         self.args = args
@@ -214,6 +297,17 @@ class Transformer(nn.Module):
         seqlens: List[int],
         cache: Optional[RotatingBufferCache]=None,
     ) -> torch.Tensor:
+        """
+        Forward pass of the Transformer model.
+
+        Args:
+            input_ids (torch.Tensor): Input token IDs.
+            cache (RotatingBufferCache): Rotating buffer cache for storing keys and values.
+            seqlens (List[int]): List of sequence lengths in the batch.
+
+        Returns:
+            torch.Tensor: Output tensor.
+        """
         assert len(seqlens) <= self.args.max_batch_size, f"Max batch size is {self.args.max_batch_size}, got batch size of {len(seqlens)}"
         assert sum(seqlens) == input_ids.shape[0], (sum(seqlens), input_ids.shape[0])
         if cache is not None:
@@ -244,6 +338,18 @@ class Transformer(nn.Module):
 
     @staticmethod
     def from_folder(folder: Path, max_batch_size: int = 1, device="cuda", dtype=torch.float16) -> "Transformer":
+        """
+        Load a Transformer model from a folder.
+
+        Args:
+            folder (Path): Path to the folder containing the model files.
+            max_batch_size (int, optional): Maximum batch size for the model. Defaults to 1.
+            device (str, optional): Device on which to load the model (e.g., 'cuda' or 'cpu'). Defaults to 'cuda'.
+            dtype (torch.dtype, optional): Data type for the model (e.g., torch.float16 or torch.float32). Defaults to torch.float16.
+
+        Returns:
+            Transformer: Loaded Transformer model.
+        """
         with open(folder / 'params.json', 'r') as f:
             model_args = ModelArgs(**json.loads(f.read()))
         model_args.max_batch_size = max_batch_size

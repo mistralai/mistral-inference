@@ -4,6 +4,9 @@ from typing import List
 
 
 class Tokenizer:
+    """
+    Tokenizer class
+    """
     def __init__(self, model_path: str):
         assert Path(model_path).exists(), model_path
         self._model = SentencePieceProcessor(model_file=model_path)
@@ -26,6 +29,16 @@ class Tokenizer:
         return self._model.pad_id()
 
     def encode(self, s: str, bos: bool = True) -> List[int]:
+        """
+        Encode a text string into a list of token IDs.
+
+        Args:
+            s (str): The input text to be encoded.
+            bos (bool, optional): Whether to prepend a beginning-of-sequence token. Defaults to True.
+
+        Returns:
+            List[int]: A list of token IDs representing the encoded text.
+        """
         assert isinstance(s, str)
         t = self._model.encode(s)
         if bos:
@@ -33,4 +46,13 @@ class Tokenizer:
         return t
 
     def decode(self, t: List[int]) -> str:
+        """
+        Decode a list of token IDs into a text string.
+
+        Args:
+            t (List[int]): A list of token IDs to be decoded.
+
+        Returns:
+            str: The decoded text string.
+        """
         return self._model.decode(t)
