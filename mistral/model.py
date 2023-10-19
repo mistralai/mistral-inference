@@ -3,7 +3,7 @@ from torch import nn
 from dataclasses import dataclass
 from pathlib import Path
 import json
-from typing import List
+from typing import List, Optional
 
 from mistral.rope import precompute_freqs_cis, apply_rotary_emb
 from mistral.cache import CacheView, RotatingBufferCache
@@ -26,6 +26,20 @@ class ModelArgs:
     vocab_size: int
 
     max_batch_size: int = 0
+
+
+@dataclass
+class SimpleInputMetadata:
+    # rope absolute positions
+    positions: torch.Tensor
+
+    @staticmethod
+    def from_seqlens(seqlens: List[int], device: torch.device) -> "SimpleInputMetadata":
+        return SimpleInputMetadata(
+            positions = torch.cat(
+                [torch.arange(0, seqlen) for seqlen in seqlens]
+            ).to(device=device, dtype=torch.long)
+        )
 
 
 def repeat_kv(keys: torch.Tensor, values: torch.Tensor, repeats: int, dim: int):
@@ -72,7 +86,7 @@ class Attention(nn.Module):
     def forward(
         self, x: torch.Tensor, 
         freqs_cis: torch.Tensor,
-        cache: CacheView,
+        cache: Optional[CacheView],
     ) -> torch.Tensor:
         seqlen_sum, _ = x.shape
 
@@ -82,7 +96,9 @@ class Attention(nn.Module):
         xv = xv.view(seqlen_sum, self.n_kv_heads, self.args.head_dim)
         xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis)
 
-        if cache.prefill:
+        if cache is None:
+            key, val = xk, xv
+        elif cache.prefill:
             key, val = cache.interleave_kv(xk, xv)
             cache.update(xk, xv)
         else: 
@@ -96,7 +112,7 @@ class Attention(nn.Module):
 
         # xformers requires (B=1, S, H, D)
         xq, key, val = xq[None, ...], key[None, ...], val[None, ...]
-        output = memory_efficient_attention(xq, key, val, cache.mask)
+        output = memory_efficient_attention(xq, key, val, None if cache is None else cache.mask)
 
         return self.wo(output.view_as(x))
 
@@ -151,7 +167,7 @@ class TransformerBlock(nn.Module):
         self.args = args
 
     def forward(
-        self, x: torch.Tensor, freqs_cis: torch.Tensor, cache: CacheView
+        self, x: torch.Tensor, freqs_cis: torch.Tensor, cache: Optional[CacheView]
     ) -> torch.Tensor:
         r = self.attention.forward(self.attention_norm(x), freqs_cis, cache)
         h = x + r
@@ -192,25 +208,39 @@ class Transformer(nn.Module):
     def device(self) -> torch.device:
         return self.tok_embeddings.weight.device
 
-    def forward(
+    def forward_partial(
         self,
         input_ids: torch.Tensor,
-        cache: RotatingBufferCache,
         seqlens: List[int],
+        cache: Optional[RotatingBufferCache]=None,
     ) -> torch.Tensor:
         assert len(seqlens) <= self.args.max_batch_size, f"Max batch size is {self.args.max_batch_size}, got batch size of {len(seqlens)}"
         assert sum(seqlens) == input_ids.shape[0], (sum(seqlens), input_ids.shape[0])
-
-        input_metadata = cache.get_input_metadata(seqlens)
+        if cache is not None:
+            input_metadata = cache.get_input_metadata(seqlens)
+        else:
+            input_metadata = SimpleInputMetadata.from_seqlens(seqlens, self.device)
         h = self.tok_embeddings(input_ids)
         freqs_cis = self.freqs_cis[input_metadata.positions]
 
         for layer_id, layer in enumerate(self.layers):
-            h = layer(h, freqs_cis, cache.get_view(layer_id, input_metadata))
+            cache_view = None if cache is None else cache.get_view(layer_id, input_metadata)
+            h = layer(h, freqs_cis, cache_view)
+        
+        if cache is not None:
+            cache.update_seqlens(seqlens)
 
-        cache.update_seqlens(seqlens)
+        return self.norm(h)
 
-        return self.output(self.norm(h)).float()
+    def forward(
+        self,
+        input_ids: torch.Tensor,
+        seqlens: List[int],
+        cache: Optional[RotatingBufferCache]=None,
+    ) -> torch.Tensor:
+        return self.output(self.forward_partial(
+            input_ids, seqlens, cache=cache
+        )).float()
 
     @staticmethod
     def from_folder(folder: Path, max_batch_size: int = 1, device="cuda", dtype=torch.float16) -> "Transformer":

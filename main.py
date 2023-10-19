@@ -60,8 +60,8 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, ma
         assert all(len(p) > 0 for p in prompt_chunks)
         prelogits = model.forward(
             torch.tensor(sum(prompt_chunks, []), device=model.device, dtype=torch.long),
-            cache,
-            seqlens=[len(p) for p in prompt_chunks]
+            seqlens=[len(p) for p in prompt_chunks],
+            cache=cache
         )
         logits = torch.log_softmax(prelogits, dim=-1)
 
@@ -89,7 +89,7 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, ma
             logprobs[i].append(last_token_logits[i, next_token[i]].item())
 
         generated_tokens.append(next_token[:, None])
-        last_token_prelogits = model.forward(next_token, cache, seqlens=[1] * len(prompts))
+        last_token_prelogits = model.forward(next_token, seqlens=[1] * len(prompts), cache=cache)
         assert last_token_prelogits.shape == (B, V)
 
     generated_words = []
