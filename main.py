@@ -22,8 +22,7 @@ def sample_top_p(probs: torch.Tensor, p: float):
 
 def sample_top_k(probs: torch.Tensor, top_k: int):
     probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
-    topk_probs = probs_sort[:top_k]
-    mask = probs_sort < topk_probs[-1].item()
+    mask = probs_sort < probs_sort[:, top_k-1].unsqueeze(1)
     probs_sort[mask] = 0.0
     probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
     next_token = torch.multinomial(probs_sort, num_samples=1)
