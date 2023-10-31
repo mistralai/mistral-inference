@@ -9,7 +9,7 @@ Guardrailing: [https://docs.mistral.ai/usage/guardrailing](https://docs.mistral.
 
 ## Deployment
 
-The `deploy` folder contains code to build a [vLLM](https://github.com/vllm-project/vllm) image with the required dependencies to serve the Mistral AI model. In the image, the [transformers](https://github.com/huggingface/transformers/) library is used instead of the reference implementation. To build it:
+The `deploy` folder contains code to build a [vLLM](https://github.com/vllm-project/vllm) image with the required dependencies to serve the Mistral AI model. In the image, the [transformer](https://github.com/huggingface/transformers/) library is used instead of the reference implementation. To build it:
 
 ```bash
 docker build deploy --build-arg MAX_JOBS=8
@@ -86,7 +86,7 @@ To alleviate this issue, we use a sliding window attention [1,2]: each token can
 
 ![Sliding window attention](assets/sliding_attention.png)
 
-Note that tokens outside the sliding window still influence next word prediction. 
+Note that tokens outside the sliding window still influence the next word prediction. 
 At each attention layer, information can move forward by W tokens at most: after two attention layers, information can move forward by 2W tokens, etc.
 For instance in a sequence of length 16K and a sliding window of 4K, after 4 layers, information has propagated to the full sequence length.
 
@@ -107,7 +107,7 @@ When the position i is larger than W, past values in the cache are overwritten.
 When generating a sequence, we need to predict tokens one-by-one, as each token is conditioned on the previous ones.
 However, the prompt is known in advance, and we can pre-fill the (k, v) cache with the prompt.
 If the prompt is very large, we can chunk it into smaller pieces, and pre-fill the cache with each chunk.
-For this we can choose as chunk size the window size. For each chunk, we thus need to compute the attention over the cache and over the chunk.
+For this we can choose as chunk size as the window size. For each chunk, we thus need to compute the attention over the cache and over the chunk.
 
 ![Chunking](assets/chunking.png)
 
