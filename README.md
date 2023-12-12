@@ -66,6 +66,16 @@ To run logits equivalence through chunking and sliding window, launch
 python -m test_generate
 ```
 
+### Running large models
+
+When running models that are too large to fit a single GPU's memory, use pipeline parallelism (PP) and `torchrun`. This is needed to run `Mixtral-7B-8x`. The code below does 2-way PP.
+
+```
+torchrun --nproc-per-node 2 -m main demo /path/to/mixtral-7B-8x-v0.1/ --num_pipeline_ranks=2
+```
+
+> [!Note]
+> PP is not supported when running in interactive mode.
 
 # Sliding window attention
 
@@ -110,6 +120,17 @@ If the prompt is very large, we can chunk it into smaller pieces, and pre-fill t
 For this we can choose as chunk size the window size. For each chunk, we thus need to compute the attention over the cache and over the chunk.
 
 ![Chunking](assets/chunking.png)
+
+
+# Sparse Mixture of Experts (SMoE)
+
+Sparse Mixture of Experts allows one to decouple throughput from memory costs by only activating subsets of the overall model for each token. In this approach, each token is assigned to one or more "experts" -- a separate set of weights -- and only processed by sunch experts. This division happens at feedforward layers of the model. The expert models specialize in different aspects of the data, allowing them to capture complex patterns and make more accurate predictions.
+
+![SMoE](assets/smoe.png)
+
+## Pipeline Parallelism
+
+Pipeline parallelism is a set of techniques for partitioning models, enabling the distribution of a large model across multiple GPUs. We provide a simple implementation of pipeline parallelism, which allows our larger models to be executed within the memory constraints of modern GPUs. Note that this implementation favours simplicity over throughput efficiency, and most notabably does not include microbatching.
 
 
 ## Integrations and related projects
