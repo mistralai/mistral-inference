@@ -111,12 +111,14 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, ma
     return generated_words, logprobs
 
 
-def interactive(model_path: str, max_tokens: int = 35, temperature: float = 0.7):
+def interactive(model_path: str, max_tokens: int = 35, temperature: float = 0.7, instruct: bool = False):
     tokenizer = Tokenizer(str(Path(model_path) / "tokenizer.model"))
     transformer = Transformer.from_folder(Path(model_path), max_batch_size=3)
 
     while True:
         prompt = input("Prompt: ")
+        if instruct:
+            prompt = f"[INST] {prompt} [/INST]"
         res, _logprobs = generate(
             [prompt],
             transformer,
