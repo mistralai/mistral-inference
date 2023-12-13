@@ -24,7 +24,7 @@ RUN git clone https://github.com/NVIDIA/apex && \
     sed -i '/check_cuda_torch_binary_vs_bare_metal(CUDA_HOME)/d' setup.py && \
     python3 setup.py install --cpp_ext --cuda_ext
 
-RUN pip3 install "xformers==0.0.22" "transformers==4.34.0" "vllm==0.2.0" "fschat[model_worker]==0.2.30"
+RUN pip3 install "xformers==0.0.22" "transformers==4.34.0" "vllm==0.2.0" "fschat[model_worker]==0.2.32"
 
 COPY entrypoint.sh .
 
