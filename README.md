@@ -15,7 +15,7 @@ The `deploy` folder contains code to build a [vLLM](https://github.com/vllm-proj
 docker build deploy --build-arg MAX_JOBS=8
 ```
 
-Instructions to run the image can be found in the [official documentation](https://docs.mistral.ai/quickstart).
+Instructions to run the image can be found in the [official documentation](https://docs.mistral.ai/self-deployment/vllm/).
 
 ## Installation
 
