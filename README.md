@@ -5,7 +5,7 @@ This repository contains minimal code to run our 7B model.
 Blog: [https://mistral.ai/news/announcing-mistral-7b/](https://mistral.ai/news/announcing-mistral-7b/)\
 Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistralai)\
 Documentation: [https://docs.mistral.ai/](https://docs.mistral.ai/)\
-Guardrailing: [https://docs.mistral.ai/usage/guardrailing](https://docs.mistral.ai/usage/guardrailing)
+Guardrailing: [https://docs.mistral.ai/usage/guardrailing](https://docs.mistral.ai/platform/guardrailing)
 
 ## Deployment
 
@@ -151,7 +151,7 @@ Pipeline parallelism is a set of techniques for partitioning models, enabling th
 - Compare Mistral 7B to Llama 13B on [LLMBoxing](https://llmboxing.com/)
 - Compare Mistral 7B to 10+ LLMs on [Chatbot Arena](https://chat.lmsys.org/) or host it yourself with [FastChat](https://github.com/lm-sys/FastChat) 
 - Use Mistral 7B in [Dust](https://dust.tt/)
-- Speak to Mistral AI Instruct on [Perplexity labs](https://labs.perplexity.ai/) (warning: deployed version is not [guardrailed](https://docs.mistral.ai/usage/guardrailing)) 
+- Speak to Mistral AI Instruct on [Perplexity labs](https://labs.perplexity.ai/) (warning: deployed version is not [guardrailed](https://docs.mistral.ai/platform/guardrailing)) 
 - Use Mistral 7B in [Quivr](https://blog.quivr.app/is-mistral-a-good-replacement-for-openai/)
 - Use Mistral 7B or its Zephyr derivate on [LlamaIndex](https://docs.llamaindex.ai/en/stable/core_modules/model_modules/llms/root.html#open-source-llms)
 
