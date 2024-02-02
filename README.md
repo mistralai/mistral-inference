@@ -25,7 +25,7 @@ pip install -r requirements.txt
 
 ## Download the model
 ```
-wget https://files.mistral-7b-v0-1.mistral.ai/mistral-7B-v0.1.tar
+wget https://models.mistralcdn.com/mistral-7b-v0-1/mistral-7B-v0.1.tar (md5sum: 37dab53973db2d56b2da0a033a15307f)
 tar -xf mistral-7B-v0.1.tar
 ```
 
@@ -135,9 +135,9 @@ Pipeline parallelism is a set of techniques for partitioning models, enabling th
 
 ## Integrations and related projects
 
-
 ### Model platforms
 
+- Use Mistral 7B Instruct on [Mistral AI official API](https://console.mistral.ai/) (La Plateforme)
 - Use Mistral AI in HuggingFace:
   - [Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1)
   - [Mistral-7B-Instruct-v0.1](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1)
