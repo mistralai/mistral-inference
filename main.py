@@ -1,4 +1,5 @@
 from mistral.cache import RotatingBufferCache
+import logging
 import torch
 import fire
 from typing import List
@@ -31,7 +32,7 @@ def sample(logits: torch.Tensor, temperature: float, top_p: float):
 
 
 @torch.inference_mode()
-def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, max_tokens: int, chunk_size: int = None, temperature: float = 0.7):
+def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, max_tokens: int,  temperature: float, chunk_size: int = None):
     model = model.eval()
     B, V = len(prompts), model.args.vocab_size
 
@@ -40,8 +41,16 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, ma
     seqlens = [len(x) for x in encoded_prompts]
 
     # Cache
-    cache_window = min(model.args.sliding_window, max(seqlens) + max_tokens)
-    cache = RotatingBufferCache(model.args.n_layers, model.args.max_batch_size, cache_window, model.args.n_kv_heads, model.args.head_dim)
+    cache_window = max(seqlens) + max_tokens
+    if model.args.sliding_window is not None and cache_window > model.args.sliding_window:
+        cache_window = model.args.sliding_window
+    cache = RotatingBufferCache(
+        model.n_local_layers,
+        model.args.max_batch_size,
+        cache_window,
+        model.args.n_kv_heads,
+        model.args.head_dim,
+    )
     cache.to(device=model.device, dtype=model.dtype)
     cache.reset()
     
@@ -81,6 +90,7 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, ma
 
     # decode
     generated_tokens = []
+    assert last_token_prelogits is not None
     for i_token in range(max_tokens):
         next_token = sample(last_token_prelogits, temperature=temperature, top_p=0.8)
 
@@ -101,12 +111,14 @@ def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, *, ma
     return generated_words, logprobs
 
 
-def interactive(model_path: str, max_tokens: int = 35, temperature: float = 0.7):
+def interactive(model_path: str, max_tokens: int = 35, temperature: float = 0.7, instruct: bool = False):
     tokenizer = Tokenizer(str(Path(model_path) / "tokenizer.model"))
     transformer = Transformer.from_folder(Path(model_path), max_batch_size=3)
 
     while True:
         prompt = input("Prompt: ")
+        if instruct:
+            prompt = f"[INST] {prompt} [/INST]"
         res, _logprobs = generate(
             [prompt],
             transformer,
@@ -117,14 +129,25 @@ def interactive(model_path: str, max_tokens: int = 35, temperature: float = 0.7)
         print(res[0])
         print("=====================")
 
-def demo(model_path: str, max_tokens: int = 35, temperature: float = 0):
+
+def demo(
+    model_path: str, max_tokens: int = 35, temperature: float = 0, num_pipeline_ranks=1
+):
+    if num_pipeline_ranks > 1:
+        torch.distributed.init_process_group()
+        torch.cuda.set_device(torch.distributed.get_rank())
+        should_print = torch.distributed.get_rank() == 0
+    else:
+        should_print = True
     tokenizer = Tokenizer(str(Path(model_path) / "tokenizer.model"))
-    transformer = Transformer.from_folder(Path(model_path), max_batch_size=3)
+    transformer = Transformer.from_folder(
+        Path(model_path), max_batch_size=3, num_pipeline_ranks=num_pipeline_ranks
+    )
 
     res, _logprobs = generate(
         [
             "This is a test",
-            "This is another test",
+            "This is another great test",
             "This is a third test, mistral AI is very good at testing. ",
         ],
         transformer,
@@ -132,11 +155,14 @@ def demo(model_path: str, max_tokens: int = 35, temperature: float = 0):
         max_tokens=max_tokens,
         temperature=temperature,
     )
-    for x in res:
-        print(x)
-        print("=====================")
+    if should_print:
+        for x,l in zip(res, _logprobs):
+            print(x)
+            logging.debug('Logprobs: %s',l)
+            print("=====================")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     fire.Fire({
         "interactive": interactive,
         "demo": demo,

@@ -25,7 +25,7 @@ pip install -r requirements.txt
 
 ## Download the model
 ```
-wget https://files.mistral-7b-v0-1.mistral.ai/mistral-7B-v0.1.tar
+wget https://models.mistralcdn.com/mistral-7b-v0-1/mistral-7B-v0.1.tar (md5sum: 37dab53973db2d56b2da0a033a15307f)
 tar -xf mistral-7B-v0.1.tar
 ```
 
@@ -66,6 +66,16 @@ To run logits equivalence through chunking and sliding window, launch
 python -m test_generate
 ```
 
+### Running large models
+
+When running models that are too large to fit a single GPU's memory, use pipeline parallelism (PP) and `torchrun`. This is needed to run `Mixtral-7B-8x`. The code below does 2-way PP.
+
+```
+torchrun --nproc-per-node 2 -m main demo /path/to/mixtral-7B-8x-v0.1/ --num_pipeline_ranks=2
+```
+
+> [!Note]
+> PP is not supported when running in interactive mode.
 
 # Sliding window attention
 
@@ -112,11 +122,22 @@ For this we can choose as chunk size the window size. For each chunk, we thus ne
 ![Chunking](assets/chunking.png)
 
 
-## Integrations and related projects
+# Sparse Mixture of Experts (SMoE)
 
+Sparse Mixture of Experts allows one to decouple throughput from memory costs by only activating subsets of the overall model for each token. In this approach, each token is assigned to one or more "experts" -- a separate set of weights -- and only processed by sunch experts. This division happens at feedforward layers of the model. The expert models specialize in different aspects of the data, allowing them to capture complex patterns and make more accurate predictions.
+
+![SMoE](assets/smoe.png)
+
+## Pipeline Parallelism
+
+Pipeline parallelism is a set of techniques for partitioning models, enabling the distribution of a large model across multiple GPUs. We provide a simple implementation of pipeline parallelism, which allows our larger models to be executed within the memory constraints of modern GPUs. Note that this implementation favours simplicity over throughput efficiency, and most notabably does not include microbatching.
+
+
+## Integrations and related projects
 
 ### Model platforms
 
+- Use Mistral 7B Instruct on [Mistral AI official API](https://console.mistral.ai/) (La Plateforme)
 - Use Mistral AI in Hugging Face:
   - [Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1)
   - [Mistral-7B-Instruct-v0.1](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1)

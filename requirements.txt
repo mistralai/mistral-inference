@@ -1,4 +1,5 @@
 fire
 sentencepiece
-torch
+torch>=2.1.0
 xformers
+simple-parsing
