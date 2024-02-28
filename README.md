@@ -138,7 +138,7 @@ Pipeline parallelism is a set of techniques for partitioning models, enabling th
 ### Model platforms
 
 - Use Mistral 7B Instruct on [Mistral AI official API](https://console.mistral.ai/) (La Plateforme)
-- Use Mistral AI in HuggingFace:
+- Use Mistral AI in Hugging Face:
   - [Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1)
   - [Mistral-7B-Instruct-v0.1](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1)
 - Use Mistral 7B on [Vertex AI](https://github.com/GoogleCloudPlatform/vertex-ai-samples/blob/main/notebooks/community/model_garden/model_garden_pytorch_mistral.ipynb)
