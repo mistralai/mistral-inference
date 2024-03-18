@@ -258,7 +258,7 @@ class Transformer(nn.Module):
             )
             mask = torch.tril(tensor, diagonal=0).to(h.dtype)
             # make the mask banded to account for sliding window
-            mask = torch.triu(mask, diagonal=-self.args.sliding_window)
+            mask = torch.triu(mask, diagonal=-self.args.sliding_window+1)
             mask = torch.log(mask)
         
         for layer in self.layers:
