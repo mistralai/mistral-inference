@@ -55,19 +55,19 @@ mkdir -p $MISTRAL_MODEL
 Download any of the above links and extract the content, *e.g.*:
 
 ```sh
-export 7B_DIR=$MISTRAL_MODEL/7B_instruct
+export M7B_DIR=$MISTRAL_MODEL/7B_instruct
 wget https://models.mistralcdn.com/mistral-7b-v0-3/mistral-7B-Instruct-v0.3.tar
-mkdir -p $7B_DIR
-tar -xf Mistral-7B-v0.3-Instruct.tar -C $7B_DIR
+mkdir -p $M7B_DIR
+tar -xf Mistral-7B-v0.3-Instruct.tar -C $M7B_DIR
 ```
 
 or 
 
 ```sh
-export 8x7B_DIR=$MISTRAL_MODEL/8x7b_instruct
+export M8x7B_DIR=$MISTRAL_MODEL/8x7b_instruct
 wget https://models.mistralcdn.com/mixtral-8x7b-v0-1/Mixtral-8x7B-v0.1-Instruct.tar
-mkdir -p $8x7B_DIR
-tar -xf Mixtral-8x7B-v0.1-Instruct.tar -C $8x7B_DIR
+mkdir -p $M8x7B_DIR
+tar -xf Mixtral-8x7B-v0.1-Instruct.tar -C $M8x7B_DIR
 ```
 
 ## Usage
@@ -82,14 +82,14 @@ To test that a model works in your setup, you can run the `mistral-demo` command
 The 7B models can be tested on a single GPU as follows:
 
 ```sh
-mistral-demo $7B_DIR
+mistral-demo $M7B_DIR
 ```
 
 Large models, such **8x7B** and **8x22B** have to be run in a multi-GPU setup.
 For these models, you can use the following command:
 
 ```sh
-torchrun --nproc-per-node 2 --no-python mistral-demo $8x7B_DIR
+torchrun --nproc-per-node 2 --no-python mistral-demo $M8x7B_DIR
 ```
 
 *Note*: Change `--nproc-per-node` to more GPUs if available.
@@ -99,13 +99,13 @@ torchrun --nproc-per-node 2 --no-python mistral-demo $8x7B_DIR
 To interactively chat with the models, you can make use of the `mistral-chat` command.
 
 ```sh
-mistral-chat $7B_DIR --instruct
+mistral-chat $M7B_DIR --instruct
 ```
 
 For large models, you can make use of `torchrun`.
 
 ```sh
-torchrun --nproc-per-node 2 --no-python mistral-chat $8x7B_DIR --instruct
+torchrun --nproc-per-node 2 --no-python mistral-chat $M8x7B_DIR --instruct
 ```
 
 *Note*: Change `--nproc-per-node` to more GPUs if necessary (*e.g.* for 8x22B).
@@ -183,7 +183,7 @@ print(result)
 If you want a self-contained implementation, look at `one_file_ref.py`, or run it with 
 
 ```
-python -m one_file_ref $7B_DIR
+python -m one_file_ref $M7B_DIR
 ```
 
 which should give something along the following lines:
@@ -216,7 +216,7 @@ python -m pytest tests
 
 ## Deployment
 
-The `deploy` folder contains code to build a [vLLM](https://7B_DIR.com/vllm-project/vllm) image with the required dependencies to serve the Mistral AI model. In the image, the [transformers](https://github.com/huggingface/transformers/) library is used instead of the reference implementation. To build it:
+The `deploy` folder contains code to build a [vLLM](https://M7B_DIR.com/vllm-project/vllm) image with the required dependencies to serve the Mistral AI model. In the image, the [transformers](https://github.com/huggingface/transformers/) library is used instead of the reference implementation. To build it:
 
 ```bash
 docker build deploy --build-arg MAX_JOBS=8
