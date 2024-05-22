@@ -1,11 +1,12 @@
-import torch
 from typing import Tuple
+
+import torch
 
 
 def precompute_freqs_cis(dim: int, end: int, theta: float) -> torch.Tensor:
     freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
-    t = torch.arange(end, device=freqs.device)  # type: ignore
-    freqs = torch.outer(t, freqs).float()  # type: ignore
+    t = torch.arange(end, device=freqs.device)
+    freqs = torch.outer(t, freqs).float()
     return torch.polar(torch.ones_like(freqs), freqs)  # complex64
 
 

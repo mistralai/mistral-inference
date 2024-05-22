@@ -1,50 +1,192 @@
-# Mistral Transformer
+# Mistral Inference
+<a target="_blank" href="https://colab.research.google.com/github/mistralai/mistral-inference/blob/main/tutorials/getting_started.ipynb">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
 
-This repository contains minimal code to run our 7B model.
 
-Blog: [https://mistral.ai/news/announcing-mistral-7b/](https://mistral.ai/news/announcing-mistral-7b/)\
+This repository contains minimal code to run our 7B, 8x7B and 8x22B models.
+
+Blog 7B: [https://mistral.ai/news/announcing-mistral-7b/](https://mistral.ai/news/announcing-mistral-7b/)\
+Blog 8x7B: [https://mistral.ai/news/mixtral-of-experts/](https://mistral.ai/news/mixtral-of-experts/)\
+Blog 8x22B: [https://mistral.ai/news/mixtral-8x22b/](https://mistral.ai/news/mixtral-8x22b/)
+
 Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistralai)\
 Documentation: [https://docs.mistral.ai/](https://docs.mistral.ai/)\
 Guardrailing: [https://docs.mistral.ai/usage/guardrailing](https://docs.mistral.ai/usage/guardrailing)
 
-## Deployment
-
-The `deploy` folder contains code to build a [vLLM](https://github.com/vllm-project/vllm) image with the required dependencies to serve the Mistral AI model. In the image, the [transformers](https://github.com/huggingface/transformers/) library is used instead of the reference implementation. To build it:
-
-```bash
-docker build deploy --build-arg MAX_JOBS=8
-```
-
-Instructions to run the image can be found in the [official documentation](https://docs.mistral.ai/quickstart).
-
 ## Installation
 
-```
-pip install -r requirements.txt
-```
-
-## Download the model
-```
-wget https://models.mistralcdn.com/mistral-7b-v0-1/mistral-7B-v0.1.tar (md5sum: 37dab53973db2d56b2da0a033a15307f)
-tar -xf mistral-7B-v0.1.tar
-```
-
-## Run the model
+### PyPI
 
 ```
-python -m main demo /path/to/mistral-7B-v0.1/
-# To give your own prompts
-python -m main interactive /path/to/mistral-7B-v0.1/
+pip install mistral-inference
 ```
-Change `temperature` or `max_tokens` using:
+
+### Local
+
 ```
-python -m main interactive /path/to/mistral-7B-v0.1/ --max_tokens 256 --temperature 1.0
+cd $HOME && git clone https://github.com/mistralai/mistral-inference
+cd $HOME/mistral-inference && poetry install .
 ```
+
+## Model download
+
+| Name        | Download | md5sum |
+|-------------|-------|-------|
+| 7B Instruct v3 | https://models.mistralcdn.com/mistral-7b-v0-3/mistral-7B-Instruct-v0.3.tar | `80b71fcb6416085bcb4efad86dfb4d52` |
+| 8x7B Instruct | https://models.mistralcdn.com/mixtral-8x7b-v0-1/Mixtral-8x7B-v0.1-Instruct.tar (**Updated model coming soon!**) | `8e2d3930145dc43d3084396f49d38a3f` |
+| 8x22 Instruct | https://models.mistralcdn.com/mixtral-8x22b-v0-3/mixtral-8x22B-Instruct-v0.3.tar | `471a02a6902706a2f1e44a693813855b` |
+| 7B Base | https://models.mistralcdn.com/mistral-7b-v0-3/mistral-7B-v0.3.tar | `0663b293810d7571dad25dae2f2a5806` |
+| 8x7B |     **Updated model coming soon!**       | - |
+| 8x22B | https://models.mistralcdn.com/mixtral-8x22b-v0-3/mixtral-8x22B-v0.3.tar | `a2fa75117174f87d1197e3a4eb50371a` |
+
+Note: 
+- All of the listed models above supports function calling. For example, Mistral 7B Base/Instruct v3 is a minor update to Mistral 7B Base/Instruct v2,  with the addition of function calling capabilities. 
+- The "coming soon" models will include function calling as well. 
+- You can download the previous versions of our models from our [docs](https://docs.mistral.ai/getting-started/open_weight_models/#downloading).
+
+
+Create a local folder to store models
+```sh
+export MISTRAL_MODEL=$HOME/mistral_models
+mkdir -p $MISTRAL_MODEL
+```
+
+Download any of the above links and extract the content, *e.g.*:
+
+```sh
+export 7B_DIR=$MISTRAL_MODEL/7B_instruct
+wget https://models.mistralcdn.com/mistral-7b-v0-3/mistral-7B-Instruct-v0.3.tar
+mkdir -p $7B_DIR
+tar -xf Mistral-7B-v0.3-Instruct.tar -C $7B_DIR
+```
+
+or 
+
+```sh
+export 8x7B_DIR=$MISTRAL_MODEL/8x7b_instruct
+wget https://models.mistralcdn.com/mixtral-8x7b-v0-1/Mixtral-8x7B-v0.1-Instruct.tar
+mkdir -p $8x7B_DIR
+tar -xf Mixtral-8x7B-v0.1-Instruct.tar -C $8x7B_DIR
+```
+
+## Usage
+
+The following sections give an overview of how to run the model from the Command-line interface or from Python.
+
+### CLI
+
+- **Demo**
+
+To test that a model works in your setup, you can run the `mistral-demo` command.
+The 7B models can be tested on a single GPU as follows:
+
+```sh
+mistral-demo $7B_DIR
+```
+
+Large models, such **8x7B** and **8x22B** have to be run in a multi-GPU setup.
+For these models, you can use the following command:
+
+```sh
+torchrun --nproc-per-node 2 --no-python mistral-demo $8x7B_DIR
+```
+
+*Note*: Change `--nproc-per-node` to more GPUs if available.
+
+- **Chat**
+
+To interactively chat with the models, you can make use of the `mistral-chat` command.
+
+```sh
+mistral-chat $7B_DIR --instruct
+```
+
+For large models, you can make use of `torchrun`.
+
+```sh
+torchrun --nproc-per-node 2 --no-python mistral-chat $8x7B_DIR --instruct
+```
+
+*Note*: Change `--nproc-per-node` to more GPUs if necessary (*e.g.* for 8x22B).
+
+### Python
+
+- *Instruction Following*:
+
+```py
+from mistral_inference.model import Transformer
+from mistral_inference.generate import generate
+
+from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
+from mistral_common.protocol.instruct.messages import UserMessage
+from mistral_common.protocol.instruct.request import ChatCompletionRequest
+
+
+tokenizer = MistralTokenizer.from_file("./mistral_7b_instruct/tokenizer.model.v3")  # change to extracted tokenizer file
+model = Transformer.from_folder("./mistral_7b_instruct")  # change to extracted model dir
+
+completion_request = ChatCompletionRequest(messages=[UserMessage(content="Explain Machine Learning to me in a nutshell.")])
+
+tokens = tokenizer.encode_chat_completion(completion_request).tokens
+
+out_tokens, _ = generate([tokens], model, max_tokens=64, temperature=0.0, eos_id=tokenizer.instruct_tokenizer.tokenizer.eos_id)
+result = tokenizer.instruct_tokenizer.tokenizer.decode(out_tokens[0])
+
+print(result)
+```
+
+- *Function Calling*:
+
+```py
+from mistral_common.protocol.instruct.tool_calls import Function, Tool
+
+completion_request = ChatCompletionRequest(
+    tools=[
+        Tool(
+            function=Function(
+                name="get_current_weather",
+                description="Get the current weather",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state, e.g. San Francisco, CA",
+                        },
+                        "format": {
+                            "type": "string",
+                            "enum": ["celsius", "fahrenheit"],
+                            "description": "The temperature unit to use. Infer this from the users location.",
+                        },
+                    },
+                    "required": ["location", "format"],
+                },
+            )
+        )
+    ],
+    messages=[
+        UserMessage(content="What's the weather like today in Paris?"),
+        ],
+)
+
+out_tokens, _ = generate([tokens], model, max_tokens=64, temperature=0.0, eos_id=tokenizer.instruct_tokenizer.tokenizer.eos_id)
+result = tokenizer.instruct_tokenizer.tokenizer.decode(out_tokens[0])
+
+print(result)
+```
+
+### One-file-ref
 
 If you want a self-contained implementation, look at `one_file_ref.py`, or run it with 
-```
-python -m one_file_ref /path/to/mistral-7B-v0.1/
 
+```
+python -m one_file_ref $7B_DIR
+```
+
+which should give something along the following lines:
+
+```
 This is a test of the emergency broadcast system. This is only a test.
 
 If this were a real emergency, you would be told what to do.
@@ -61,116 +203,28 @@ This
 =====================
 ```
 
-To run logits equivalence through chunking and sliding window, launch
-```
-python -m test_generate
-```
+**Note**: To run self-contained implementations, you need to do a local installation.
 
-### Running large models
+### Test
 
-When running models that are too large to fit a single GPU's memory, use pipeline parallelism (PP) and `torchrun`. This is needed to run `Mixtral-7B-8x`. The code below does 2-way PP.
-
+To run logits equivalence:
 ```
-torchrun --nproc-per-node 2 -m main demo /path/to/mixtral-7B-8x-v0.1/ --num_pipeline_ranks=2
+python -m pytest tests
 ```
 
-> [!Note]
-> PP is not supported when running in interactive mode.
+## Deployment
 
-# Sliding window attention
+The `deploy` folder contains code to build a [vLLM](https://7B_DIR.com/vllm-project/vllm) image with the required dependencies to serve the Mistral AI model. In the image, the [transformers](https://github.com/huggingface/transformers/) library is used instead of the reference implementation. To build it:
 
-## Vanilla attention
+```bash
+docker build deploy --build-arg MAX_JOBS=8
+```
 
-Attention is how information is shared between tokens in a sequence.
-In vanilla transformers, attention follows a causal mask: each token in the sequence can attend to itself and all the tokens in the past.
-This ensures that the model is causal, i.e. it can only use information from the past to predict the future.
-
-
-![Causal attention mask](assets/full_attention.png)
-
-## Sliding window to speed-up inference and reduce memory pressure
-
-The number of operations of attention is quadratic in the sequence length, and the memory pressure is linear in the sequence length.
-At inference time, this incurs higher latency and smaller throughput due to reduced cache availability.
-To alleviate this issue, we use a sliding window attention [1,2]: each token can attend to at most W tokens in the past (here, W=3).
-
-![Sliding window attention](assets/sliding_attention.png)
-
-Note that tokens outside the sliding window still influence next word prediction. 
-At each attention layer, information can move forward by W tokens at most: after two attention layers, information can move forward by 2W tokens, etc.
-For instance in a sequence of length 16K and a sliding window of 4K, after 4 layers, information has propagated to the full sequence length.
-
-![Attention through layers](assets/attention_through_layers.png)
-
-Empirically, we see that longer contexts do help *even outside the sliding window* but when the sequence length becomes too large, the model does not use the full context anymore.
-
-## Rolling buffer cache
-
-We implement a rolling buffer cache.
-The cache has a fixed size of W, and we store the (key, value) for position i in cache position i % W.
-When the position i is larger than W, past values in the cache are overwritten.
-
-![Rolling cache](assets/rolling_cache.png)
-
-## Pre-fill and chunking
-
-When generating a sequence, we need to predict tokens one-by-one, as each token is conditioned on the previous ones.
-However, the prompt is known in advance, and we can pre-fill the (k, v) cache with the prompt.
-If the prompt is very large, we can chunk it into smaller pieces, and pre-fill the cache with each chunk.
-For this we can choose as chunk size the window size. For each chunk, we thus need to compute the attention over the cache and over the chunk.
-
-![Chunking](assets/chunking.png)
+Instructions to run the image can be found in the [official documentation](https://docs.mistral.ai/quickstart).
 
 
-# Sparse Mixture of Experts (SMoE)
+## Model platforms
 
-Sparse Mixture of Experts allows one to decouple throughput from memory costs by only activating subsets of the overall model for each token. In this approach, each token is assigned to one or more "experts" -- a separate set of weights -- and only processed by sunch experts. This division happens at feedforward layers of the model. The expert models specialize in different aspects of the data, allowing them to capture complex patterns and make more accurate predictions.
+- Use Mistral models on [Mistral AI official API](https://console.mistral.ai/) (La Plateforme)
+- Use Mistral models via [cloud providers](https://docs.mistral.ai/deployment/cloud/overview/)
 
-![SMoE](assets/smoe.png)
-
-## Pipeline Parallelism
-
-Pipeline parallelism is a set of techniques for partitioning models, enabling the distribution of a large model across multiple GPUs. We provide a simple implementation of pipeline parallelism, which allows our larger models to be executed within the memory constraints of modern GPUs. Note that this implementation favours simplicity over throughput efficiency, and most notabably does not include microbatching.
-
-
-## Integrations and related projects
-
-### Model platforms
-
-- Use Mistral 7B Instruct on [Mistral AI official API](https://console.mistral.ai/) (La Plateforme)
-- Use Mistral AI in HuggingFace:
-  - [Mistral-7B-v0.1](https://huggingface.co/mistralai/Mistral-7B-v0.1)
-  - [Mistral-7B-Instruct-v0.1](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1)
-- Use Mistral 7B on [Vertex AI](https://github.com/GoogleCloudPlatform/vertex-ai-samples/blob/main/notebooks/community/model_garden/model_garden_pytorch_mistral.ipynb)
-- Use Mistral 7B on [Replicate](https://replicate.com/lucataco/mistral-7b-v0.1)
-- Use Mistral 7B on [Sagemaker Jumpstart](https://aws.amazon.com/blogs/machine-learning/mistral-7b-foundation-models-from-mistral-ai-are-now-available-in-amazon-sagemaker-jumpstart/)
-- Use Mistral 7B on [Baseten](https://app.baseten.co/explore/)
-
-### Applications
-
-- Compare Mistral 7B to Llama 13B on [LLMBoxing](https://llmboxing.com/)
-- Compare Mistral 7B to 10+ LLMs on [Chatbot Arena](https://chat.lmsys.org/) or host it yourself with [FastChat](https://github.com/lm-sys/FastChat) 
-- Use Mistral 7B in [Dust](https://dust.tt/)
-- Speak to Mistral AI Instruct on [Perplexity labs](https://labs.perplexity.ai/) (warning: deployed version is not [guardrailed](https://docs.mistral.ai/usage/guardrailing)) 
-- Use Mistral 7B in [Quivr](https://blog.quivr.app/is-mistral-a-good-replacement-for-openai/)
-- Use Mistral 7B or its Zephyr derivate on [LlamaIndex](https://docs.llamaindex.ai/en/stable/core_modules/model_modules/llms/root.html#open-source-llms)
-
-### Local deployment
-- [Ollama](https://ollama.ai/library/mistral) local deployment
-- [GGML](https://github.com/ggerganov/ggml) local deployment
-- [TextSynth](https://textsynth.com/pricing.html) local deployment
-
-### Derived models
-
-- Multimodal: [BakLLaVa-1](https://huggingface.co/SkunkworksAI/BakLLaVA-1)
-
-- Model fine-tuned on direct preferences: [Zephyr-7B-alpha](https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha)
-
-- Model fine-tuned on generated data: [OpenOrca](https://huggingface.co/Open-Orca/Mistral-7B-OpenOrca)
-
-
-## References
-
-[1] [Generating Long Sequences with Sparse Transformers, Child et al. 2019](https://arxiv.org/pdf/1904.10509.pdf)
-
-[2] [Longformer: The Long-Document Transformer, Beltagy et al. 2020](https://arxiv.org/pdf/2004.05150v2.pdf)

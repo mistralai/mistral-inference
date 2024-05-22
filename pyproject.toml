@@ -1,0 +1,49 @@
+[tool.poetry]
+name = "mistral_inference"
+version = "v1.0.4"
+description = ""
+authors = ["bam4d <bam4d@mistral.ai>"]
+readme = "README.md"
+packages = [{ include = "mistral_inference", from = "src" }]
+
+[tool.ruff]
+lint.select = ["E", "F", "W", "Q", "I"]
+lint.ignore = ["E203"]
+lint.fixable = ["ALL"]
+lint.unfixable = []
+line-length = 120
+exclude = ["docs", "build", "tutorials"]
+
+[tool.mypy]
+disallow_untyped_defs = true
+show_error_codes = true
+no_implicit_optional = true
+warn_return_any = true
+warn_unused_ignores = true
+exclude = ["docs", "tools", "build"]
+
+[tool.poetry.dependencies]
+python = "^3.9.10"
+xformers = ">=0.0.25"
+simple-parsing = ">=0.1.5"
+fire = ">=0.6.0"
+mistral_common = "^1.0.0"
+safetensors = ">=0.4.0"
+
+[tool.poetry.group.dev.dependencies]
+types-protobuf = "4.24.0.20240129"
+mypy-protobuf = "^3.5.0"
+pytest = "7.4.4"
+ruff = "^0.2.2"
+mypy = "^1.8.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["./tests"]
+
+[tool.poetry.scripts]
+mistral-chat = "mistral_inference.main:mistral_chat"
+mistral-demo = "mistral_inference.main:mistral_demo"

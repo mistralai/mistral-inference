@@ -1,13 +1,16 @@
 import json
 import logging
 import math
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 import fire
+import safetensors.torch
 import torch
-from sentencepiece import SentencePieceProcessor
+from mistral_common.tokens.tokenizers.base import Tokenizer
+from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
 from simple_parsing.helpers import Serializable
 from torch import nn
 
@@ -30,8 +33,16 @@ class ModelArgs(Serializable):
     vocab_size: int
     moe: MoeArgs
 
+    # For rotary embeddings. If not set, will be infered
+    rope_theta: Optional[float] = None
+
     max_batch_size: int = 0
     max_seq_len: int = 0
+
+
+def is_torchrun() -> bool:
+    required_vars = ["MASTER_ADDR", "MASTER_PORT", "RANK", "WORLD_SIZE"]
+    return all(var in os.environ for var in required_vars)
 
 
 def repeat_kv(keys: torch.Tensor, values: torch.Tensor, repeats: int):
@@ -132,9 +143,10 @@ class Attention(nn.Module):
         xv = xv.view(bsz, seqlen, self.n_kv_heads, self.args.head_dim)
         xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis)
 
-        # The cache is a rotating buffer
-        scatter_pos = (positions % self.args.max_seq_len)[None, :, None, None]
-        scatter_pos = scatter_pos.repeat(bsz, 1, self.n_kv_heads, self.args.head_dim)
+        # Update cache
+        scatter_pos = positions[None, :, None, None].repeat(
+            bsz, 1, self.n_kv_heads, self.args.head_dim
+        )
         cache_k[:bsz].scatter_(dim=1, index=scatter_pos, src=xk)
         cache_v[:bsz].scatter_(dim=1, index=scatter_pos, src=xv)
 
@@ -248,8 +260,7 @@ class TransformerBlock(nn.Module):
         return out
 
 
-def precompute_freqs_cis(dim: int, end: int) -> torch.Tensor:
-    theta = 1000000.0
+def precompute_freqs_cis(dim: int, end: int, theta: float) -> torch.Tensor:
     freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
     t = torch.arange(end, device=freqs.device)  # type: ignore
     freqs = torch.outer(t, freqs).float()  # type: ignore
@@ -304,8 +315,9 @@ class Transformer(nn.Module):
         # and has the right dtype (complex64). The fact that the dtype is different
         # from the module's  dtype means we cannot register it as a buffer
         if self._precomputed_freqs_cis is None:
+            theta = self.args.rope_theta or 1000000.0
             self._precomputed_freqs_cis = precompute_freqs_cis(
-                self.args.head_dim, 128_000
+                self.args.head_dim, 128_000, theta
             )
         if self._precomputed_freqs_cis.device != self.device:
             self._precomputed_freqs_cis = self._precomputed_freqs_cis.to(
@@ -321,7 +333,7 @@ class Transformer(nn.Module):
         freqs_cis = self.freqs_cis[positions]
 
         (bsz, seqlen) = input_ids.shape
-        num_toks = bsz * seqlen
+        bsz * seqlen
 
         if self.pipeline_rank == 0:
             assert self.tok_embeddings is not None
@@ -423,50 +435,60 @@ class Transformer(nn.Module):
                 pipeline_rank=pipeline_rank,
                 num_pipeline_ranks=num_pipeline_ranks,
             )
-        loaded = torch.load(str(folder / "consolidated.00.pth"), mmap=True)
-        model.load_state_dict(loaded, assign=True)
+
+        pt_model_file = Path(folder) / "consolidated.00.pth"
+        safetensors_model_file = Path(folder) / "consolidated.safetensors"
+
+        assert (
+            pt_model_file.exists() or safetensors_model_file.exists()
+        ), f"Make sure either {pt_model_file} or {safetensors_model_file} exists"
+        assert not (
+            pt_model_file.exists() and safetensors_model_file.exists()
+        ), f"Both {pt_model_file} and {safetensors_model_file} cannot exist"
+
+        if pt_model_file.exists():
+            loaded = torch.load(str(pt_model_file), mmap=True)
+        else:
+            loaded = safetensors.torch.load_file(str(safetensors_model_file))
+
+        model.load_state_dict(loaded, assign=True, strict=True)
+
         return model.to(device=device, dtype=dtype)
 
 
-class Tokenizer:
-    def __init__(self, model_path: str):
-        assert Path(model_path).exists(), model_path
-        self._model = SentencePieceProcessor(model_file=model_path)
-        assert self._model.vocab_size() == self._model.get_piece_size()
+def load_tokenizer(model_path: Path) -> MistralTokenizer:
+    tokenizer = [
+        f for f in os.listdir(Path(model_path)) if f.startswith("tokenizer.model")
+    ]
+    assert (
+        len(tokenizer) == 1
+    ), f"Multiple tokenizers {', '.join(tokenizer)} found in `model_path`, make sure to only have one tokenizer"
 
-    @property
-    def eos_id(self) -> int:
-        return self._model.eos_id()
+    tokenizer = MistralTokenizer.from_file(str(model_path / tokenizer[0]))
 
-    @property
-    def pad_id(self) -> int:
-        return self._model.pad_id()
-
-    def encode(self, s: str) -> List[int]:
-        return [self._model.bos_id(), *self._model.encode(s)]
-
-    def decode(self, t: List[int]) -> str:
-        return self._model.decode(t)
+    return tokenizer
 
 
 @torch.no_grad()
 def generate(
     prompts: List[str], model: Transformer, tokenizer: Tokenizer, max_tokens: int
 ):
-    encoded_prompts = [tokenizer.encode(prompt) for prompt in prompts]
+    encoded_prompts = [
+        tokenizer.encode(prompt, bos=True, eos=False) for prompt in prompts
+    ]
     prompt_lens = [len(x) for x in encoded_prompts]
     min_prompt_len = min(prompt_lens)
     max_prompt_len = max(prompt_lens)
 
     input_tokens = torch.full(
         (len(prompts), max_prompt_len),
-        tokenizer.pad_id,
+        tokenizer._model.pad_id(),
         dtype=torch.long,
         device="cuda",
     )
     for i, encoded in enumerate(encoded_prompts):
         input_tokens[i, : len(encoded)] = torch.tensor(encoded).to(input_tokens)
-    input_mask = input_tokens != tokenizer.pad_id
+    input_mask = input_tokens != tokenizer._model.pad_id()
 
     # pre-fill
     positions = torch.arange(0, min_prompt_len).to("cuda")
@@ -504,15 +526,20 @@ def generate(
     return res, all_logprobs_merged
 
 
-def demo(model_path: str, max_tokens: int = 30, num_pipeline_ranks=2):
-    if num_pipeline_ranks > 1:
+def demo(model_path: str, max_tokens: int = 30):
+    if is_torchrun():
         torch.distributed.init_process_group()
         torch.cuda.set_device(torch.distributed.get_rank())
         should_print = torch.distributed.get_rank() == 0
+
+        num_pipeline_ranks = torch.distributed.get_world_size()
     else:
         should_print = True
+        num_pipeline_ranks = 1
 
-    tokenizer = Tokenizer(str(Path(model_path) / "tokenizer.model"))
+    mistral_tokenizer: MistralTokenizer = load_tokenizer(Path(model_path))
+    tokenizer: Tokenizer = mistral_tokenizer.instruct_tokenizer.tokenizer
+
     transformer = Transformer.from_folder(
         Path(model_path),
         max_batch_size=3,
@@ -531,9 +558,9 @@ def demo(model_path: str, max_tokens: int = 30, num_pipeline_ranks=2):
         max_tokens=max_tokens,
     )
     if should_print:
-        for x, l in zip(res, logprobs):
+        for x, log_prob in zip(res, logprobs):
             print(x)
-            logging.debug("logprobs: %s", l)
+            logging.debug("logprobs: %s", log_prob)
             print("=====================")
 
 

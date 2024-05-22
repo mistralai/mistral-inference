@@ -3,17 +3,21 @@ import logging
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Mapping, Optional, Tuple, Union
 
+import safetensors.torch
 import torch
-from torch import nn
 from simple_parsing.helpers import Serializable
+from torch import nn
+from xformers.ops.fmha import memory_efficient_attention  # type: ignore
 
-from mistral.rope import precompute_freqs_cis, apply_rotary_emb
-from mistral.cache import CacheView, RotatingBufferCache
-from mistral.moe import MoeArgs, MoeLayer
-
-from xformers.ops.fmha import memory_efficient_attention
+from mistral_inference.cache import (
+    BufferCache,
+    CacheInputMetadata,
+    CacheView,
+)
+from mistral_inference.moe import MoeArgs, MoeLayer
+from mistral_inference.rope import apply_rotary_emb, precompute_freqs_cis
 
 
 @dataclass
@@ -29,10 +33,8 @@ class ModelArgs(Serializable):
 
     max_batch_size: int = 0
 
-    # For rotary embeddings. If not set, will be infered from sliding window.
+    # For rotary embeddings. If not set, will be infered
     rope_theta: Optional[float] = None
-    # If this is set, use sliding window attention rotating cache.
-    sliding_window: Optional[int] = None
     # If this is set, we will use MoE layers instead of dense layers.
     moe: Optional[MoeArgs] = None
 
@@ -51,7 +53,9 @@ class SimpleInputMetadata:
         )
 
 
-def repeat_kv(keys: torch.Tensor, values: torch.Tensor, repeats: int, dim: int):
+def repeat_kv(
+    keys: torch.Tensor, values: torch.Tensor, repeats: int, dim: int
+) -> Tuple[torch.Tensor, torch.Tensor]:
     keys = torch.repeat_interleave(keys, repeats=repeats, dim=dim)
     values = torch.repeat_interleave(values, repeats=repeats, dim=dim)
     return keys, values
@@ -98,10 +102,10 @@ class Attention(nn.Module):
             cache.update(xk, xv)
             key, val = cache.key, cache.value
             key = key.view(
-                seqlen_sum * cache.sliding_window, self.n_kv_heads, self.head_dim
+                seqlen_sum * cache.max_seq_len, self.n_kv_heads, self.head_dim
             )
             val = val.view(
-                seqlen_sum * cache.sliding_window, self.n_kv_heads, self.head_dim
+                seqlen_sum * cache.max_seq_len, self.n_kv_heads, self.head_dim
             )
 
         # Repeat keys and values to match number of query heads
@@ -112,8 +116,11 @@ class Attention(nn.Module):
         output = memory_efficient_attention(
             xq, key, val, None if cache is None else cache.mask
         )
+        output = output.view(seqlen_sum, self.n_heads * self.head_dim)
 
-        return self.wo(output.view(seqlen_sum, self.n_heads * self.head_dim))
+        assert isinstance(output, torch.Tensor)
+
+        return self.wo(output)  # type: ignore
 
 
 class FeedForward(nn.Module):
@@ -124,8 +131,8 @@ class FeedForward(nn.Module):
         self.w2 = nn.Linear(args.hidden_dim, args.dim, bias=False)
         self.w3 = nn.Linear(args.dim, args.hidden_dim, bias=False)
 
-    def forward(self, x) -> torch.Tensor:
-        return self.w2(nn.functional.silu(self.w1(x)) * self.w3(x))
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.w2(nn.functional.silu(self.w1(x)) * self.w3(x))  # type: ignore
 
 
 class RMSNorm(torch.nn.Module):
@@ -134,10 +141,10 @@ class RMSNorm(torch.nn.Module):
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(dim))
 
-    def _norm(self, x):
+    def _norm(self, x: torch.Tensor) -> torch.Tensor:
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         output = self._norm(x.float()).type_as(x)
         return output * self.weight
 
@@ -219,14 +226,12 @@ class Transformer(nn.Module):
         # and has the right dtype (complex64). The fact that the dtype is different
         # from the module's  dtype means we cannot register it as a buffer
         if self._precomputed_freqs_cis is None:
-            # If no sliding window, assume a larger seqlen
-            theta = self.args.rope_theta
-            if theta is None:
-                theta = 1000000.0 if self.args.sliding_window is None else 10000.0
-            # theta = 10000.
+            # default to 10**6
+            theta = self.args.rope_theta or 1000000.0
             self._precomputed_freqs_cis = precompute_freqs_cis(
                 self.args.head_dim, 128_000, theta
             )
+
         if self._precomputed_freqs_cis.device != self.device:
             self._precomputed_freqs_cis = self._precomputed_freqs_cis.to(
                 device=self.device
@@ -237,7 +242,7 @@ class Transformer(nn.Module):
         self,
         input_ids: torch.Tensor,
         seqlens: List[int],
-        cache: Optional[RotatingBufferCache] = None,
+        cache: Optional[BufferCache] = None,
     ) -> torch.Tensor:
         """Local forward pass.
 
@@ -249,6 +254,9 @@ class Transformer(nn.Module):
         ), f"Max batch size is {self.args.max_batch_size}, got batch size of {len(seqlens)}"
         (num_toks,) = input_ids.shape
         assert sum(seqlens) == num_toks, (sum(seqlens), num_toks)
+
+        input_metadata: Union[CacheInputMetadata, SimpleInputMetadata]
+
         if cache is not None:
             input_metadata = cache.get_input_metadata(seqlens)
         else:
@@ -268,6 +276,7 @@ class Transformer(nn.Module):
         for local_layer_id, layer in enumerate(self.layers.values()):
             if cache is not None:
                 assert input_metadata is not None
+                assert isinstance(input_metadata, CacheInputMetadata)
                 cache_view = cache.get_view(local_layer_id, input_metadata)
             else:
                 cache_view = None
@@ -277,17 +286,17 @@ class Transformer(nn.Module):
             cache.update_seqlens(seqlens)
         if self.pipeline_rank < self.num_pipeline_ranks - 1:
             torch.distributed.send(h, dst=self.pipeline_rank + 1)
-            return h
+            return h  # type: ignore
         else:
             # Last rank has a final normalization step.
             assert self.norm is not None
-            return self.norm(h)
+            return self.norm(h)  # type: ignore
 
     def forward(
         self,
         input_ids: torch.Tensor,
         seqlens: List[int],
-        cache: Optional[RotatingBufferCache] = None,
+        cache: Optional[BufferCache] = None,
     ) -> torch.Tensor:
         h = self.forward_partial(input_ids, seqlens, cache=cache)
         if self.pipeline_rank < self.num_pipeline_ranks - 1:
@@ -303,7 +312,9 @@ class Transformer(nn.Module):
             torch.distributed.broadcast(outs, src=self.num_pipeline_ranks - 1)
         return outs.float()
 
-    def load_state_dict(self, state_dict, *args, **kwargs):
+    def load_state_dict(
+        self, state_dict: Mapping[str, Any], strict: bool = True, assign: bool = False
+    ) -> None:
         state_to_load = {}
         skipped = set([])
         for k, v in state_dict.items():
@@ -341,17 +352,17 @@ class Transformer(nn.Module):
             else:
                 raise ValueError(f"Unexpected key {k}")
         assert set(state_dict.keys()) == skipped.union(set(state_to_load.keys()))
-        super().load_state_dict(state_to_load, *args, **kwargs)
+        super().load_state_dict(state_to_load, strict=strict, assign=assign)
 
     @staticmethod
     def from_folder(
-        folder: Path,
+        folder: Union[Path, str],
         max_batch_size: int = 1,
         num_pipeline_ranks: int = 1,
-        device="cuda",
-        dtype=torch.float16,
+        device: Union[torch.device, str] = "cuda",
+        dtype: Optional[torch.dtype] = None,
     ) -> "Transformer":
-        with open(folder / "params.json", "r") as f:
+        with open(Path(folder) / "params.json", "r") as f:
             model_args = ModelArgs.from_dict(json.load(f))
         model_args.max_batch_size = max_batch_size
         if num_pipeline_ranks > 1:
@@ -364,6 +375,22 @@ class Transformer(nn.Module):
                 pipeline_rank=pipeline_rank,
                 num_pipeline_ranks=num_pipeline_ranks,
             )
-        loaded = torch.load(str(folder / "consolidated.00.pth"), mmap=True)
-        model.load_state_dict(loaded, assign=True)
+
+        pt_model_file = Path(folder) / "consolidated.00.pth"
+        safetensors_model_file = Path(folder) / "consolidated.safetensors"
+
+        assert (
+            pt_model_file.exists() or safetensors_model_file.exists()
+        ), f"Make sure either {pt_model_file} or {safetensors_model_file} exists"
+        assert not (
+            pt_model_file.exists() and safetensors_model_file.exists()
+        ), f"Both {pt_model_file} and {safetensors_model_file} cannot exist"
+
+        if pt_model_file.exists():
+            loaded = torch.load(str(pt_model_file), mmap=True)
+        else:
+            loaded = safetensors.torch.load_file(str(safetensors_model_file))
+
+        model.load_state_dict(loaded, assign=True, strict=True)
+
         return model.to(device=device, dtype=dtype)
