@@ -58,7 +58,7 @@ Download any of the above links and extract the content, *e.g.*:
 export M7B_DIR=$MISTRAL_MODEL/7B_instruct
 wget https://models.mistralcdn.com/mistral-7b-v0-3/mistral-7B-Instruct-v0.3.tar
 mkdir -p $M7B_DIR
-tar -xf Mistral-7B-v0.3-Instruct.tar -C $M7B_DIR
+tar -xf mistral-7B-Instruct-v0.3.tar -C $M7B_DIR
 ```
 
 or 
