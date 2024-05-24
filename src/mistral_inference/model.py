@@ -2,6 +2,7 @@ import json
 import logging
 import math
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any, List, Mapping, Optional, Tuple, Union
 
@@ -16,6 +17,7 @@ from mistral_inference.cache import (
     CacheInputMetadata,
     CacheView,
 )
+from mistral_inference.lora import LoraArgs, LoRALinear, LoRALoaderMixin
 from mistral_inference.moe import MoeArgs, MoeLayer
 from mistral_inference.rope import apply_rotary_emb, precompute_freqs_cis
 
@@ -37,6 +39,8 @@ class ModelArgs(Serializable):
     rope_theta: Optional[float] = None
     # If this is set, we will use MoE layers instead of dense layers.
     moe: Optional[MoeArgs] = None
+    # If this is set, we will load LoRA linear layers instead of linear layers.
+    lora: Optional[LoraArgs] = None
 
 
 @dataclass
@@ -61,6 +65,13 @@ def repeat_kv(
     return keys, values
 
 
+def maybe_lora(args: ModelArgs) -> Union[nn.Linear, LoRALinear]:
+    if args.lora is None:
+        return nn.Linear
+    else:
+        return partial(LoRALinear, rank=args.lora.rank, scaling=args.lora.scaling)
+
+
 class Attention(nn.Module):
     def __init__(self, args: ModelArgs):
         super().__init__()
@@ -74,10 +85,11 @@ class Attention(nn.Module):
 
         self.scale = self.args.head_dim**-0.5
 
-        self.wq = nn.Linear(args.dim, args.n_heads * args.head_dim, bias=False)
-        self.wk = nn.Linear(args.dim, args.n_kv_heads * args.head_dim, bias=False)
-        self.wv = nn.Linear(args.dim, args.n_kv_heads * args.head_dim, bias=False)
-        self.wo = nn.Linear(args.n_heads * args.head_dim, args.dim, bias=False)
+        MaybeLora = maybe_lora(args)
+        self.wq = MaybeLora(args.dim, args.n_heads * args.head_dim, bias=False)
+        self.wk = MaybeLora(args.dim, args.n_kv_heads * args.head_dim, bias=False)
+        self.wv = MaybeLora(args.dim, args.n_kv_heads * args.head_dim, bias=False)
+        self.wo = MaybeLora(args.n_heads * args.head_dim, args.dim, bias=False)
 
     def forward(
         self,
@@ -127,9 +139,10 @@ class FeedForward(nn.Module):
     def __init__(self, args: ModelArgs):
         super().__init__()
 
-        self.w1 = nn.Linear(args.dim, args.hidden_dim, bias=False)
-        self.w2 = nn.Linear(args.hidden_dim, args.dim, bias=False)
-        self.w3 = nn.Linear(args.dim, args.hidden_dim, bias=False)
+        MaybeLora = maybe_lora(args)
+        self.w1 = MaybeLora(args.dim, args.hidden_dim, bias=False)
+        self.w2 = MaybeLora(args.hidden_dim, args.dim, bias=False)
+        self.w3 = MaybeLora(args.dim, args.hidden_dim, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.w2(nn.functional.silu(self.w1(x)) * self.w3(x))  # type: ignore
@@ -179,7 +192,7 @@ class TransformerBlock(nn.Module):
         return out
 
 
-class Transformer(nn.Module):
+class Transformer(nn.Module, LoRALoaderMixin):
     def __init__(
         self,
         args: ModelArgs,

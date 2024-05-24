@@ -233,3 +233,6 @@ Instructions to run the image can be found in the [official documentation](https
 - Use Mistral models on [Mistral AI official API](https://console.mistral.ai/) (La Plateforme)
 - Use Mistral models via [cloud providers](https://docs.mistral.ai/deployment/cloud/overview/)
 
+## References
+
+[1]: [LoRA](https://arxiv.org/abs/2106.09685): Low-Rank Adaptation of Large Language Models, Hu et al. 2021

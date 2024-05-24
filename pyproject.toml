@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mistral_inference"
-version = "v1.0.4"
+version = "v1.1.0"
 description = ""
 authors = ["bam4d <bam4d@mistral.ai>"]
 readme = "README.md"
@@ -24,7 +24,7 @@ exclude = ["docs", "tools", "build"]
 
 [tool.poetry.dependencies]
 python = "^3.9.10"
-xformers = ">=0.0.25"
+xformers = ">=0.0.24"
 simple-parsing = ">=0.1.5"
 fire = ">=0.6.0"
 mistral_common = "^1.0.0"
