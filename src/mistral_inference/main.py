@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import fire  # type: ignore
 import torch
@@ -46,6 +46,7 @@ def interactive(
     temperature: float = 0.7,
     num_pipeline_ranks: int = 1,
     instruct: bool = False,
+    lora_path: Optional[str] = None,
 ) -> None:
     if is_torchrun():
         torch.distributed.init_process_group()
@@ -63,6 +64,10 @@ def interactive(
     transformer = Transformer.from_folder(
         Path(model_path), max_batch_size=3, num_pipeline_ranks=num_pipeline_ranks
     )
+
+    # load LoRA
+    if lora_path is not None:
+        transformer.load_lora(Path(lora_path))
 
     prompt: str = ""
     messages: List[UserMessage | AssistantMessage] = []
@@ -117,6 +122,7 @@ def demo(
     model_path: str,
     max_tokens: int = 35,
     temperature: float = 0,
+    lora_path: Optional[str] = None,
 ) -> None:
     if is_torchrun():
         torch.distributed.init_process_group()
@@ -131,6 +137,10 @@ def demo(
     transformer = Transformer.from_folder(
         Path(model_path), max_batch_size=3, num_pipeline_ranks=num_pipeline_ranks
     )
+    # load LoRA
+    if lora_path is not None:
+        transformer.load_lora(Path(lora_path))
+
     mistral_tokenizer: MistralTokenizer = load_tokenizer(Path(model_path))
     tokenizer: Tokenizer = mistral_tokenizer.instruct_tokenizer.tokenizer
 
