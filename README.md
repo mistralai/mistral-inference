@@ -16,6 +16,8 @@ Guardrailing: [https://docs.mistral.ai/usage/guardrailing](https://docs.mistral.
 
 ## Installation
 
+Note: You will use a GPU to install `mistral-inference`, as it currently requires `xformers` to be installed and `xformers` itself needs a GPU for installation.
+
 ### PyPI
 
 ```
