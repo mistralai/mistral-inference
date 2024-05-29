@@ -120,7 +120,7 @@ torchrun --nproc-per-node 2 --no-python mistral-chat $M8x7B_DIR --instruct
 
 - **Chat as Code Assistant**
 
-To use [Codestral] as a coding assistant you can run the following command using `mistral-chat`.
+To use [Codestral](https://mistral.ai/news/codestral/) as a coding assistant you can run the following command using `mistral-chat`.
 Make sure `$M22B_CODESTRAL` is set to a valid path to the downloaded codestral folder, e.g. `$HOME/mistral_models/Codestral-22B-v0.1`
 
 ```sh
