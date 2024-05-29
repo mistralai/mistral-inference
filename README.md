@@ -42,7 +42,7 @@ cd $HOME/mistral-inference && poetry install .
 | 7B Base | https://models.mistralcdn.com/mistral-7b-v0-3/mistral-7B-v0.3.tar | `0663b293810d7571dad25dae2f2a5806` |
 | 8x7B |     **Updated model coming soon!**       | - |
 | 8x22B | https://models.mistralcdn.com/mixtral-8x22b-v0-3/mixtral-8x22B-v0.3.tar | `a2fa75117174f87d1197e3a4eb50371a` |
-| Codestral 22B | https://models.mistralcdn.com/codestral-22b-v0-1/codestral-22B-v0.1.tar | TODO |
+| Codestral 22B | https://models.mistralcdn.com/codestral-22b-v0-1/codestral-22B-v0.1.tar | `a5661f2f6c6ee4d6820a2f68db934c5d` |
 
 Note: 
 - **Important**:
