@@ -220,6 +220,13 @@ print(result)
 
 - *Fill-in-the-middle (FIM)*:
 
+Make sure to have `mistral-common >= 1.2.0` installed:
+```
+pip install --upgrade mistral-common
+```
+
+You can simulate a code completion in-filling as follows.
+
 ```py
 from mistral_inference.model import Transformer
 from mistral_inference.generate import generate
