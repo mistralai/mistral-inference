@@ -111,7 +111,7 @@ class LoRALoaderMixin:
         lora_dtypes = set([p.dtype for p in lora_state_dict.values()])
         assert (
             len(lora_dtypes) == 1
-        ), f"LoRA weights have multipe different dtypes {lora_dtypes}. All weights need to have the same dtype"
+        ), f"LoRA weights have multiple different dtypes {lora_dtypes}. All weights need to have the same dtype"
         lora_dtype = lora_dtypes.pop()
         assert (
             lora_dtype == self.dtype
