@@ -33,7 +33,7 @@ class ModelArgs(Serializable):
     vocab_size: int
     moe: MoeArgs
 
-    # For rotary embeddings. If not set, will be infered
+    # For rotary embeddings. If not set, will be inferred
     rope_theta: Optional[float] = None
 
     max_batch_size: int = 0
