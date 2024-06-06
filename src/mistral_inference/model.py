@@ -35,7 +35,7 @@ class ModelArgs(Serializable):
 
     max_batch_size: int = 0
 
-    # For rotary embeddings. If not set, will be infered
+    # For rotary embeddings. If not set, will be inferred
     rope_theta: Optional[float] = None
     # If this is set, we will use MoE layers instead of dense layers.
     moe: Optional[MoeArgs] = None
