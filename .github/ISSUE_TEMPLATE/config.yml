@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://docs.mistral.ai
+    about: Developer documentation for the Mistral AI platform
+  - name: Discord
+    url: https://discord.com/invite/mistralai)
+    about: Chat with the Mistral community

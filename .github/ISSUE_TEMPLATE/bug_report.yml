@@ -1,0 +1,55 @@
+name: Bug report related to mistral-inference
+description: Submit a bug report that's related to mistral-inference
+title: '[BUG: '
+labels: ['bug', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: textarea
+    id: python-vv
+    attributes:
+      label: Python -VV
+      description: Run `python -VV` from your virtual environment
+      placeholder: Copy-paste the output (no need for backticks, will be formatted into code automatically)
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: pip-freeze
+    attributes:
+      label: Pip Freeze
+      description: Run `pip freeze` from your virtual environment
+      placeholder: Copy-paste the output (no need for backticks, will be formatted into code automatically)
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Reproduction Steps
+      description: Provide a clear and concise description of the steps that lead to your issue.
+      placeholder: |
+        1. First step...
+        2. Step 2...
+        ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: Explain briefly what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any context about your problem that you deem relevant.
+  - type: textarea
+    id: suggested-solutions
+    attributes:
+      label: Suggested Solutions
+      description: Please list any solutions you recommend we consider.
