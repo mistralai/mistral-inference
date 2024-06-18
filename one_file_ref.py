@@ -24,7 +24,7 @@ class ModelArgs(Serializable):
     norm_eps: float
     vocab_size: int
 
-    # For rotary embeddings. If not set, will be infered
+    # For rotary embeddings. If not set, will be inferred
     rope_theta: Optional[float] = None
 
     max_seq_len: int = 16384
