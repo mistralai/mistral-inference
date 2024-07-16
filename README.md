@@ -177,7 +177,7 @@ To use [Mathstral](https://mistral.ai/news/mathstral/) as an assistant you can r
 Make sure `$7B_MATHSTRAL` is set to a valid path to the downloaded codestral folder, e.g. `$HOME/mistral_models/mathstral-7B-v0.1`
 
 ```sh
-mistral-chat $M7B_MATHSTRAL --instruct --max_tokens 256
+mistral-chat $7B_MATHSTRAL --instruct --max_tokens 256
 ```
 
 If you prompt it with *"Albert likes to surf every week. Each surfing session lasts for 4 hours and costs $20 per hour. How much would Albert spend in 5 weeks?"*, the model should answer with the correct calculation.
