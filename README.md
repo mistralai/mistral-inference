@@ -120,9 +120,7 @@ torchrun --nproc-per-node 2 --no-python mistral-chat $M8x7B_DIR --instruct
 
 *Note*: Change `--nproc-per-node` to more GPUs if necessary (*e.g.* for 8x22B).
 
-- **Chat as Code Assistant**
-
-**Codestral**
+- **Chat with Codestral**
 
 To use [Codestral](https://mistral.ai/news/codestral/) as a coding assistant you can run the following command using `mistral-chat`.
 Make sure `$M22B_CODESTRAL` is set to a valid path to the downloaded codestral folder, e.g. `$HOME/mistral_models/Codestral-22B-v0.1`
@@ -154,7 +152,7 @@ This function uses recursion to calculate the Fibonacci number. However, it's no
 
 You can continue chatting afterwards, *e.g.* with *"Translate it to Python"*.
 
-**Mamba-Codestral**
+- **Chat with Mamba-Codestral**
 
 To use [Mamba-Codestral](https://mistral.ai/news/codestral/) as a coding assistant you can run the following command using `mistral-chat`.
 Make sure `$7B_MAMBA_CODESTRAL` is set to a valid path to the downloaded codestral folder, e.g. `$HOME/mistral_models/mamba-codestral-7B-v0.1`.
