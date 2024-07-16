@@ -156,7 +156,7 @@ You can continue chatting afterwards, *e.g.* with *"Translate it to Python"*.
 
 - **Chat with Mamba-Codestral**
 
-To use [Mamba-Codestral](https://mistral.ai/news/codestral/) as a coding assistant you can run the following command using `mistral-chat`.
+To use [Mamba-Codestral](https://mistral.ai/news/codestral-mamba/) as a coding assistant you can run the following command using `mistral-chat`.
 Make sure `$7B_MAMBA_CODESTRAL` is set to a valid path to the downloaded codestral-mamba folder, e.g. `$HOME/mistral_models/mamba-codestral-7B-v0.1`.
 
 You then need to additionally install the following packages:
