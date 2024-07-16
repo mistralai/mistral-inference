@@ -174,7 +174,7 @@ mistral-chat $7B_CODESTRAL_MAMBA --instruct --max_tokens 256
 - **Chat with Mathstral**
 
 To use [Mathstral](https://mistral.ai/news/mathstral/) as an assistant you can run the following command using `mistral-chat`.
-Make sure `$M7B_MATHSTRAL` is set to a valid path to the downloaded codestral folder, e.g. `$HOME/mistral_models/mathstral-7B-v0.1`
+Make sure `$7B_MATHSTRAL` is set to a valid path to the downloaded codestral folder, e.g. `$HOME/mistral_models/mathstral-7B-v0.1`
 
 ```sh
 mistral-chat $M7B_MATHSTRAL --instruct --max_tokens 256
