@@ -24,9 +24,7 @@ class CacheInputMetadata:
     seqlens: List[int]
 
 
-def interleave_list(
-    l1: List[torch.Tensor], l2: List[torch.Tensor]
-) -> List[torch.Tensor]:
+def interleave_list(l1: List[torch.Tensor], l2: List[torch.Tensor]) -> List[torch.Tensor]:
     assert len(l1) == len(l2)
     return [v for pair in zip(l1, l2) for v in pair]
 
@@ -55,9 +53,7 @@ class CacheView:
         flat_cache_k.index_copy_(0, self.metadata.cache_positions, xk)
         flat_cache_v.index_copy_(0, self.metadata.cache_positions, xv)
 
-    def interleave_kv(
-        self, xk: torch.Tensor, xv: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def interleave_kv(self, xk: torch.Tensor, xv: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         This is a naive implementation and not optimized for speed.
         """
@@ -71,17 +67,11 @@ class CacheView:
         # Make it a list of [(T, H, D)]
         xk: Tuple[torch.Tensor] = torch.split(xk, self.metadata.seqlens)  # type: ignore
         xv: Tuple[torch.Tensor] = torch.split(xv, self.metadata.seqlens)  # type: ignore
-        assert len(xk) == len(
-            self.kv_seqlens
-        ), f"Batch size is {len(self.kv_seqlens)}, got {len(xk)}"
+        assert len(xk) == len(self.kv_seqlens), f"Batch size is {len(self.kv_seqlens)}, got {len(xk)}"
 
         # Retrieve cache
-        cache_k = [
-            cache_k[:seq_len] for cache_k, seq_len in zip(self.cache_k, self.kv_seqlens)
-        ]
-        cache_v = [
-            cache_v[:seq_len] for cache_v, seq_len in zip(self.cache_v, self.kv_seqlens)
-        ]
+        cache_k = [cache_k[:seq_len] for cache_k, seq_len in zip(self.cache_k, self.kv_seqlens)]
+        cache_v = [cache_v[:seq_len] for cache_v, seq_len in zip(self.cache_v, self.kv_seqlens)]
 
         interleaved_k = interleave_list(cache_k, list(xk))
         interleaved_v = interleave_list(cache_v, list(xv))
@@ -127,28 +117,20 @@ class BufferCache:
         self.n_kv_heads = n_kv_heads
         self.head_dim = head_dim
 
-        self.cache_k = torch.empty(
-            (n_layers, max_batch_size, max_seq_len, n_kv_heads, head_dim)
-        )
-        self.cache_v = torch.empty(
-            (n_layers, max_batch_size, max_seq_len, n_kv_heads, head_dim)
-        )
+        self.cache_k = torch.empty((n_layers, max_batch_size, max_seq_len, n_kv_heads, head_dim))
+        self.cache_v = torch.empty((n_layers, max_batch_size, max_seq_len, n_kv_heads, head_dim))
         # holds the valid length for each batch element in the cache
         self.kv_seqlens: Optional[torch.Tensor] = None
 
     def get_view(self, layer_id: int, metadata: CacheInputMetadata) -> CacheView:
         assert self.kv_seqlens is not None
-        return CacheView(
-            self.cache_k[layer_id], self.cache_v[layer_id], metadata, self.kv_seqlens
-        )
+        return CacheView(self.cache_k[layer_id], self.cache_v[layer_id], metadata, self.kv_seqlens)
 
     def reset(self) -> None:
         self.kv_seqlens = None
 
     def init_kvseqlens(self, batch_size: int) -> None:
-        self.kv_seqlens = torch.zeros(
-            (batch_size,), device=self.device, dtype=torch.long
-        )
+        self.kv_seqlens = torch.zeros((batch_size,), device=self.device, dtype=torch.long)
 
     @property
     def device(self) -> torch.device:
@@ -180,9 +162,9 @@ class BufferCache:
         assert len(seqlens) > 0, seqlens
         cached_elements = torch.tensor(seqlens, device=self.device, dtype=torch.long)
 
-        positions = torch.cat(
-            [torch.arange(pos, pos + seqlen) for pos, seqlen in zip(seqpos, seqlens)]
-        ).to(device=self.device, dtype=torch.long)
+        positions = torch.cat([torch.arange(pos, pos + seqlen) for pos, seqlen in zip(seqpos, seqlens)]).to(
+            device=self.device, dtype=torch.long
+        )
 
         batch_idx = torch.tensor(
             sum([[i] * seqlen for i, seqlen in enumerate(seqlens)], []),
@@ -195,24 +177,19 @@ class BufferCache:
         subsequent_prefill = any(seqlen > 1 for seqlen in seqlens)
         if first_prefill:
             assert all([pos == 0 for pos in seqpos]), seqpos
-            mask = BlockDiagonalCausalMask.from_seqlens(seqlens).make_local_attention(
-                self.max_seq_len
-            )
+            mask = BlockDiagonalCausalMask.from_seqlens(seqlens).make_local_attention(self.max_seq_len)
         elif subsequent_prefill:
             mask = BlockDiagonalMask.from_seqlens(
                 q_seqlen=seqlens,
                 kv_seqlen=[
-                    s + cached_s.clamp(max=self.max_seq_len).item()
-                    for (s, cached_s) in zip(seqlens, self.kv_seqlens)
+                    s + cached_s.clamp(max=self.max_seq_len).item() for (s, cached_s) in zip(seqlens, self.kv_seqlens)
                 ],
             ).make_local_attention_from_bottomright(self.max_seq_len)
         else:
             mask = BlockDiagonalCausalWithOffsetPaddedKeysMask.from_seqlens(
                 q_seqlen=seqlens,
                 kv_padding=self.max_seq_len,
-                kv_seqlen=(self.kv_seqlens + cached_elements)
-                .clamp(max=self.max_seq_len)
-                .tolist(),
+                kv_seqlen=(self.kv_seqlens + cached_elements).clamp(max=self.max_seq_len).tolist(),
             )
 
         return CacheInputMetadata(

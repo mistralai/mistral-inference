@@ -22,7 +22,7 @@ class MoeArgs(Serializable):
 
 
 @dataclass
-class ModelArgs(Serializable):
+class TransformerArgs(Serializable):
     dim: int
     n_layers: int
     head_dim: int
@@ -80,7 +80,7 @@ def apply_rotary_emb(
 
 
 class Attention(nn.Module):
-    def __init__(self, args: ModelArgs):
+    def __init__(self, args: TransformerArgs):
         super().__init__()
         self.args = args
 
@@ -144,9 +144,7 @@ class Attention(nn.Module):
         xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis)
 
         # Update cache
-        scatter_pos = positions[None, :, None, None].repeat(
-            bsz, 1, self.n_kv_heads, self.args.head_dim
-        )
+        scatter_pos = positions[None, :, None, None].repeat(bsz, 1, self.n_kv_heads, self.args.head_dim)
         cache_k[:bsz].scatter_(dim=1, index=scatter_pos, src=xk)
         cache_v[:bsz].scatter_(dim=1, index=scatter_pos, src=xv)
 
@@ -179,7 +177,7 @@ class Attention(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, args: ModelArgs):
+    def __init__(self, args: TransformerArgs):
         super().__init__()
         self.w1 = nn.Linear(args.dim, args.hidden_dim, bias=False)
         self.w2 = nn.Linear(args.hidden_dim, args.dim, bias=False)
@@ -214,9 +212,7 @@ class MoeLayer(nn.Module):
     def forward(self, inputs: torch.Tensor):
         inputs_squashed = inputs.view(-1, inputs.shape[-1])
         gate_logits = self.gate(inputs_squashed)
-        weights, selected_experts = torch.topk(
-            gate_logits, self.args.num_experts_per_tok
-        )
+        weights, selected_experts = torch.topk(gate_logits, self.args.num_experts_per_tok)
         weights = nn.functional.softmax(
             weights,
             dim=1,
@@ -225,14 +221,12 @@ class MoeLayer(nn.Module):
         results = torch.zeros_like(inputs_squashed)
         for i, expert in enumerate(self.experts):
             batch_idx, nth_expert = torch.where(selected_experts == i)
-            results[batch_idx] += weights[batch_idx, nth_expert, None] * expert(
-                inputs_squashed[batch_idx]
-            )
+            results[batch_idx] += weights[batch_idx, nth_expert, None] * expert(inputs_squashed[batch_idx])
         return results.view_as(inputs)
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, args: ModelArgs):
+    def __init__(self, args: TransformerArgs):
         super().__init__()
         self.n_heads = args.n_heads
         self.dim = args.dim
@@ -270,7 +264,7 @@ def precompute_freqs_cis(dim: int, end: int, theta: float) -> torch.Tensor:
 class Transformer(nn.Module):
     def __init__(
         self,
-        args: ModelArgs,
+        args: TransformerArgs,
         pipeline_rank: int = 0,
         num_pipeline_ranks: int = 1,
     ):
@@ -316,13 +310,9 @@ class Transformer(nn.Module):
         # from the module's  dtype means we cannot register it as a buffer
         if self._precomputed_freqs_cis is None:
             theta = self.args.rope_theta or 1000000.0
-            self._precomputed_freqs_cis = precompute_freqs_cis(
-                self.args.head_dim, 128_000, theta
-            )
+            self._precomputed_freqs_cis = precompute_freqs_cis(self.args.head_dim, 128_000, theta)
         if self._precomputed_freqs_cis.device != self.device:
-            self._precomputed_freqs_cis = self._precomputed_freqs_cis.to(
-                device=self.device
-            )
+            self._precomputed_freqs_cis = self._precomputed_freqs_cis.to(device=self.device)
         return self._precomputed_freqs_cis
 
     def forward(
@@ -341,9 +331,7 @@ class Transformer(nn.Module):
             assert h.shape == (bsz, seqlen, self.args.dim)
             assert h.dtype == self.dtype
         else:
-            h = torch.empty(
-                bsz, seqlen, self.args.dim, device=self.device, dtype=self.dtype
-            )
+            h = torch.empty(bsz, seqlen, self.args.dim, device=self.device, dtype=self.dtype)
             torch.distributed.recv(h, src=self.pipeline_rank - 1)
 
         mask: Optional[torch.Tensor] = None
@@ -361,9 +349,7 @@ class Transformer(nn.Module):
 
         if self.pipeline_rank < self.num_pipeline_ranks - 1:
             torch.distributed.send(h, dst=self.pipeline_rank + 1)
-            outs = torch.empty(
-                *h.shape[:-1], self.vocab_size, device=h.device, dtype=h.dtype
-            )
+            outs = torch.empty(*h.shape[:-1], self.vocab_size, device=h.device, dtype=h.dtype)
         else:
             assert self.output is not None
             assert self.norm is not None
@@ -422,7 +408,7 @@ class Transformer(nn.Module):
         dtype=torch.float16,
     ) -> "Transformer":
         with open(folder / "params.json", "r") as f:
-            model_args = ModelArgs.from_dict(json.load(f))
+            model_args = TransformerArgs.from_dict(json.load(f))
         model_args.max_batch_size = max_batch_size
         model_args.max_seq_len = max_seq_len
         if num_pipeline_ranks > 1:
@@ -457,9 +443,7 @@ class Transformer(nn.Module):
 
 
 def load_tokenizer(model_path: Path) -> MistralTokenizer:
-    tokenizer = [
-        f for f in os.listdir(Path(model_path)) if f.startswith("tokenizer.model")
-    ]
+    tokenizer = [f for f in os.listdir(Path(model_path)) if f.startswith("tokenizer.model")]
     assert (
         len(tokenizer) == 1
     ), f"Multiple tokenizers {', '.join(tokenizer)} found in `model_path`, make sure to only have one tokenizer"
@@ -470,12 +454,8 @@ def load_tokenizer(model_path: Path) -> MistralTokenizer:
 
 
 @torch.no_grad()
-def generate(
-    prompts: List[str], model: Transformer, tokenizer: Tokenizer, max_tokens: int
-):
-    encoded_prompts = [
-        tokenizer.encode(prompt, bos=True, eos=False) for prompt in prompts
-    ]
+def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, max_tokens: int):
+    encoded_prompts = [tokenizer.encode(prompt, bos=True, eos=False) for prompt in prompts]
     prompt_lens = [len(x) for x in encoded_prompts]
     min_prompt_len = min(prompt_lens)
     max_prompt_len = max(prompt_lens)
@@ -498,23 +478,17 @@ def generate(
     # decode
     generated = []
     all_logprobs = [
-        logprobs[:, :-1, :]
-        .gather(2, input_tokens[:, 1:min_prompt_len, None])
-        .squeeze(-1),
+        logprobs[:, :-1, :].gather(2, input_tokens[:, 1:min_prompt_len, None]).squeeze(-1),
     ]
     for cur_pos in range(min_prompt_len, max_tokens):
         next_token = torch.argmax(logprobs[:, -1, :], dim=-1)
         if cur_pos < input_mask.shape[1]:
-            next_token = torch.where(
-                input_mask[:, cur_pos], input_tokens[:, cur_pos], next_token
-            )
+            next_token = torch.where(input_mask[:, cur_pos], input_tokens[:, cur_pos], next_token)
         all_logprobs.append(
             logprobs[:, -1, :].gather(1, next_token[:, None]),
         )
         generated.append(next_token[:, None])
-        logits = model.forward(
-            next_token[:, None], torch.LongTensor([cur_pos]).to(next_token)
-        )
+        logits = model.forward(next_token[:, None], torch.LongTensor([cur_pos]).to(next_token))
         logprobs = nn.functional.log_softmax(logits, dim=-1)
 
     all_logprobs_merged = torch.cat(all_logprobs, 1)

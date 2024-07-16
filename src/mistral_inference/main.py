@@ -1,7 +1,9 @@
+import json
 import logging
 import os
+import warnings
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Type, Union
 
 import fire  # type: ignore
 import torch
@@ -11,8 +13,9 @@ from mistral_common.protocol.instruct.request import ChatCompletionRequest
 from mistral_common.tokens.tokenizers.base import Tokenizer
 from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
 
-from mistral_inference.generate import generate
-from mistral_inference.model import Transformer
+from mistral_inference.generate import generate, generate_mamba
+from mistral_inference.mamba import Mamba
+from mistral_inference.transformer import Transformer
 
 
 def is_torchrun() -> bool:
@@ -21,9 +24,7 @@ def is_torchrun() -> bool:
 
 
 def load_tokenizer(model_path: Path) -> MistralTokenizer:
-    tokenizer = [
-        f for f in os.listdir(Path(model_path)) if f.startswith("tokenizer.model")
-    ]
+    tokenizer = [f for f in os.listdir(Path(model_path)) if f.startswith("tokenizer.model")]
     assert (
         len(tokenizer) > 0
     ), f"No tokenizer found in {model_path}, make sure to place a `tokenizer.model.[v1,v2,v3]` file in {model_path}."
@@ -33,11 +34,26 @@ def load_tokenizer(model_path: Path) -> MistralTokenizer:
 
     mistral_tokenizer = MistralTokenizer.from_file(str(model_path / tokenizer[0]))
 
-    logging.info(
-        f"Loaded tokenizer of type {mistral_tokenizer.instruct_tokenizer.__class__}"
-    )
+    logging.info(f"Loaded tokenizer of type {mistral_tokenizer.instruct_tokenizer.__class__}")
 
     return mistral_tokenizer
+
+
+def get_model_cls(model_path: str) -> Union[Type[Mamba], Type[Transformer]]:
+    with open(Path(model_path) / "params.json", "r") as f:
+        args_dict = json.load(f)
+
+    return {"mamba": Mamba, "transformer": Transformer}[args_dict.get("model_type", "transformer")]  # type: ignore[return-value]
+
+
+def pad_and_convert_to_tensor(list_of_lists: List[List[int]], pad_id: int) -> List[List[int]]:
+    # Determine the length of the longest list
+    max_len = max(len(lst) for lst in list_of_lists)
+
+    # Left pad each list to the maximum length
+    padded_lists = [[pad_id] * (max_len - len(lst)) + lst for lst in list_of_lists]
+
+    return padded_lists
 
 
 def interactive(
@@ -61,13 +77,12 @@ def interactive(
     mistral_tokenizer: MistralTokenizer = load_tokenizer(Path(model_path))
     tokenizer: Tokenizer = mistral_tokenizer.instruct_tokenizer.tokenizer
 
-    transformer = Transformer.from_folder(
-        Path(model_path), max_batch_size=3, num_pipeline_ranks=num_pipeline_ranks
-    )
+    model_cls = get_model_cls(model_path)
+    model = model_cls.from_folder(Path(model_path), max_batch_size=3, num_pipeline_ranks=num_pipeline_ranks)
 
     # load LoRA
     if lora_path is not None:
-        transformer.load_lora(Path(lora_path))
+        model.load_lora(Path(lora_path))
 
     prompt: str = ""
     messages: List[UserMessage | AssistantMessage] = []
@@ -80,9 +95,7 @@ def interactive(
                 messages += [UserMessage(content=user_input)]
                 chat_completion_request = ChatCompletionRequest(messages=messages)
 
-                tokens = mistral_tokenizer.encode_chat_completion(
-                    chat_completion_request
-                ).tokens
+                tokens = mistral_tokenizer.encode_chat_completion(chat_completion_request).tokens
             else:
                 prompt += user_input
 
@@ -98,9 +111,10 @@ def interactive(
         if not should_print:
             tokens = int(length_tensor.item()) * [0]
 
-        generated_tokens, _ = generate(
+        generate_fn = generate if isinstance(model, Transformer) else generate_mamba
+        generated_tokens, _ = generate_fn(  # type: ignore[operator]
             [tokens],
-            transformer,
+            model,
             max_tokens=max_tokens,
             temperature=temperature,
             eos_id=tokenizer.eos_id,
@@ -134,12 +148,11 @@ def demo(
         should_print = True
         num_pipeline_ranks = 1
 
-    transformer = Transformer.from_folder(
-        Path(model_path), max_batch_size=3, num_pipeline_ranks=num_pipeline_ranks
-    )
+    model_cls = get_model_cls(model_path)
+    model = model_cls.from_folder(Path(model_path), max_batch_size=3, num_pipeline_ranks=num_pipeline_ranks)
     # load LoRA
     if lora_path is not None:
-        transformer.load_lora(Path(lora_path))
+        model.load_lora(Path(lora_path))
 
     mistral_tokenizer: MistralTokenizer = load_tokenizer(Path(model_path))
     tokenizer: Tokenizer = mistral_tokenizer.instruct_tokenizer.tokenizer
@@ -150,21 +163,30 @@ def demo(
         "This is a third test, mistral AI is very good at testing. ",
     ]
 
-    encoded_prompts = [
-        tokenizer.encode(prompt, bos=True, eos=False) for prompt in prompts
-    ]
+    encoded_prompts = [tokenizer.encode(prompt, bos=True, eos=False) for prompt in prompts]
 
-    generated_tokens, _logprobs = generate(
+    if isinstance(model, Transformer):
+        generate_fn = generate
+    else:
+        generate_fn = generate_mamba  # type: ignore[assignment]
+        warnings.warn(
+            "Batched generation is not correctly supported at the moment and therefore might lead to worse results "
+            "as compared to non-batched generation. "
+            "See https://github.com/state-spaces/mamba/issues/66#issuecomment-1862349718 for more information."
+        )
+        encoded_prompts = pad_and_convert_to_tensor(encoded_prompts, mistral_tokenizer.instruct_tokenizer.BOS)  # type: ignore[attr-defined]
+
+    generated_tokens, _logprobs = generate_fn(
         encoded_prompts,
-        transformer,
+        model,  # type: ignore[arg-type]
         max_tokens=max_tokens,
         temperature=temperature,
         eos_id=tokenizer.eos_id,
     )
 
     generated_words = []
-    for i, x in enumerate(encoded_prompts):
-        generated_words.append(tokenizer.decode(x + generated_tokens[i]))
+    for i, x in enumerate(generated_tokens):
+        generated_words.append(tokenizer.decode(encoded_prompts[i] + x))
 
     res = generated_words
 
