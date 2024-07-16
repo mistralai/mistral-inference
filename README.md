@@ -168,7 +168,7 @@ pip install packaging mamba-ssm causal-conv1d transformers
 before you can start chatting:
 
 ```sh
-mistral-chat $7B_MAMBA_CODESTRAL --instruct --max_tokens 256
+mistral-chat $7B_CODESTRAL_MAMBA --instruct --max_tokens 256
 ```
 
 - **Chat with Mathstral**
