@@ -10,6 +10,8 @@ Blog 7B: [https://mistral.ai/news/announcing-mistral-7b/](https://mistral.ai/new
 Blog 8x7B: [https://mistral.ai/news/mixtral-of-experts/](https://mistral.ai/news/mixtral-of-experts/)\
 Blog 8x22B: [https://mistral.ai/news/mixtral-8x22b/](https://mistral.ai/news/mixtral-8x22b/)\
 Blog Codestral 22B: [https://mistral.ai/news/codestral](https://mistral.ai/news/codestral/)
+Blog Codestral Mamba 7B: [https://mistral.ai/news/codestral-mamba/](https://mistral.ai/news/codestral-mamba/)
+Blog Mathstral 7B: [https://mistral.ai/news/mathstral/](https://mistral.ai/news/mathstral/)
 
 Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistralai)\
 Documentation: [https://docs.mistral.ai/](https://docs.mistral.ai/)\
@@ -43,6 +45,8 @@ cd $HOME/mistral-inference && poetry install .
 | 8x7B |     **Updated model coming soon!**       | - |
 | 8x22B | https://models.mistralcdn.com/mixtral-8x22b-v0-3/mixtral-8x22B-v0.3.tar | `a2fa75117174f87d1197e3a4eb50371a` |
 | Codestral 22B | https://models.mistralcdn.com/codestral-22b-v0-1/codestral-22B-v0.1.tar | `1ea95d474a1d374b1d1b20a8e0159de3` |
+| Mathstral 7B | https://models.mistralcdn.com/mathstral-7b-v0-1/mathstral-7B-v0.1.tar | `5f05443e94489c261462794b1016f10b` |
+| Codestral-Mamba 7B | https://models.mistralcdn.com/codestral-mamba-7b-v0-1/codestral-mamba-7B-v0.1.tar | `d3993e4024d1395910c55db0d11db163` |
 
 Note: 
 - **Important**:
@@ -118,7 +122,7 @@ torchrun --nproc-per-node 2 --no-python mistral-chat $M8x7B_DIR --instruct
 
 *Note*: Change `--nproc-per-node` to more GPUs if necessary (*e.g.* for 8x22B).
 
-- **Chat as Code Assistant**
+- **Chat with Codestral**
 
 To use [Codestral](https://mistral.ai/news/codestral/) as a coding assistant you can run the following command using `mistral-chat`.
 Make sure `$M22B_CODESTRAL` is set to a valid path to the downloaded codestral folder, e.g. `$HOME/mistral_models/Codestral-22B-v0.1`
@@ -149,6 +153,36 @@ This function uses recursion to calculate the Fibonacci number. However, it's no
 ```
 
 You can continue chatting afterwards, *e.g.* with *"Translate it to Python"*.
+
+- **Chat with Codestral-Mamba**
+
+To use [Codestral-Mamba](https://mistral.ai/news/codestral-mamba/) as a coding assistant you can run the following command using `mistral-chat`.
+Make sure `$7B_CODESTRAL_MAMBA` is set to a valid path to the downloaded codestral-mamba folder, e.g. `$HOME/mistral_models/mamba-codestral-7B-v0.1`.
+
+You then need to additionally install the following packages:
+  
+```
+pip install packaging mamba-ssm causal-conv1d transformers
+```
+
+before you can start chatting:
+
+```sh
+mistral-chat $7B_CODESTRAL_MAMBA --instruct --max_tokens 256
+```
+
+- **Chat with Mathstral**
+
+To use [Mathstral](https://mistral.ai/news/mathstral/) as an assistant you can run the following command using `mistral-chat`.
+Make sure `$7B_MATHSTRAL` is set to a valid path to the downloaded codestral folder, e.g. `$HOME/mistral_models/mathstral-7B-v0.1`
+
+```sh
+mistral-chat $7B_MATHSTRAL --instruct --max_tokens 256
+```
+
+If you prompt it with *"Albert likes to surf every week. Each surfing session lasts for 4 hours and costs $20 per hour. How much would Albert spend in 5 weeks?"*, the model should answer with the correct calculation.
+
+You can then continue chatting afterwards, *e.g.* with *"How much would he spend in a year?"*.
 
 ### Python
 
