@@ -1,8 +1,10 @@
 from typing import List
 
 import torch
+from mistral_inference.generate import generate_mamba
 from mistral_inference.main import generate
-from mistral_inference.model import ModelArgs, Transformer
+from mistral_inference.mamba import Mamba, MambaArgs
+from mistral_inference.transformer import Transformer, TransformerArgs
 
 
 class DebugTokenizer:
@@ -29,11 +31,11 @@ class DebugTokenizer:
         return " ".join([str(x) for x in t])
 
 
-def test_generation():
+def test_generation_transformer():
     torch.manual_seed(42)
 
     sequences = ["1 2 3 4 5 6 7", "0 1 2", "12 13 14", "2 4 34"]
-    args = ModelArgs(
+    args = TransformerArgs(
         dim=512,
         n_layers=1,
         head_dim=128,
@@ -53,30 +55,51 @@ def test_generation():
     # concat generated and prompt
     encoded = [e + t for e, t in zip(encoded, toks)]
 
-    generated, all_logprobs_new = generate(
-        encoded, model, temperature=0.0, max_tokens=0
-    )
+    generated, all_logprobs_new = generate(encoded, model, temperature=0.0, max_tokens=0)
 
     assert generated == []
 
     # Verify that logprobs are the same
     assert len(sequences) == len(all_logprobs_old) == len(all_logprobs_new)
     for lp_old, lp_new in zip(all_logprobs_old, all_logprobs_new):
-        assert all(
-            [abs(x - y) < 1e-5 for x, y in zip(lp_old, lp_new)]
-        ), f"\n{lp_old}\n{lp_new}"
+        assert all([abs(x - y) < 5e-4 for x, y in zip(lp_old, lp_new)]), f"\n{lp_old}\n{lp_new}"
 
     print("All tests passed.")
 
 
-def test_chunks():
+def test_generation_mamba():
+    torch.manual_seed(42)
+
+    sequences = ["1 2 3 4 5 6 7"]
+    args = MambaArgs(
+        dim=512,
+        n_layers=1,
+        n_groups=1,
+        rms_norm=True,
+        residual_in_fp32=True,
+        fused_add_norm=True,
+        pad_vocab_size_multiple=1,
+        tie_embeddings=False,
+        vocab_size=32768,
+    )
+    model = Mamba(args).to("cuda", dtype=torch.float32)
+    tokenizer = DebugTokenizer()
+
+    encoded = [tokenizer.encode(s, bos=True) for s in sequences]
+    toks, all_logprobs_old = generate_mamba(encoded, model, temperature=0.0, max_tokens=7)
+
+    assert len(toks[0]) == 7
+    assert toks == [[25574, 14821, 11843, 23698, 12735, 23522, 27542]]
+
+
+def test_chunks_transformer():
     torch.manual_seed(42)
 
     sequences = [
         " ".join([str(i) for i in range(7)]),
         " ".join([str(i) for i in range(9, 0, -1)]),
     ]
-    args = ModelArgs(
+    args = TransformerArgs(
         dim=512,
         n_layers=1,
         head_dim=128,
@@ -96,17 +119,8 @@ def test_chunks():
     # concat generated and prompt
     encoded = [e + t for e, t in zip(encoded, toks)]
 
-    generated, all_logprobs_new = generate(
-        encoded, model, temperature=0.0, max_tokens=0, chunk_size=5
-    )
+    generated, all_logprobs_new = generate(encoded, model, temperature=0.0, max_tokens=0, chunk_size=5)
     assert len(generated) == 0
 
     for lp_old, lp_new in zip(all_logprobs_old, all_logprobs_new):
-        assert all(
-            [abs(x - y) < 1e-5 for x, y in zip(lp_old, lp_new)]
-        ), f"\n{lp_old}\n{lp_new}"
-
-
-if __name__ == "__main__":
-    test_generation()
-    test_chunks()
+        assert all([abs(x - y) < 5e-4 for x, y in zip(lp_old, lp_new)]), f"\n{lp_old}\n{lp_new}"

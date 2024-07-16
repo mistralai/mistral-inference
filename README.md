@@ -155,7 +155,7 @@ You can continue chatting afterwards, *e.g.* with *"Translate it to Python"*.
 - *Instruction Following*:
 
 ```py
-from mistral_inference.model import Transformer
+from mistral_inference.transformer import Transformer
 from mistral_inference.generate import generate
 
 from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
@@ -228,7 +228,7 @@ pip install --upgrade mistral-common
 You can simulate a code completion in-filling as follows.
 
 ```py
-from mistral_inference.model import Transformer
+from mistral_inference.transformer import Transformer
 from mistral_inference.generate import generate
 from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
 from mistral_common.tokens.instruct.request import FIMRequest

@@ -3,7 +3,40 @@ from typing import List, Optional, Tuple
 import torch
 
 from mistral_inference.cache import BufferCache
-from mistral_inference.model import Transformer
+from mistral_inference.mamba import Mamba
+from mistral_inference.transformer import Transformer
+
+
+@torch.inference_mode()
+def generate_mamba(
+    encoded_prompts: List[List[int]],
+    model: Mamba,
+    *,
+    max_tokens: int,
+    temperature: float,
+    chunk_size: Optional[int] = None,
+    eos_id: Optional[int] = None,
+) -> Tuple[List[List[int]], List[List[float]]]:
+    input_ids = torch.tensor(encoded_prompts, device=model.device)
+    output = model.model.generate(
+        input_ids=input_ids,
+        max_length=input_ids.shape[-1] + max_tokens,
+        cg=True,
+        return_dict_in_generate=True,
+        output_scores=True,
+        enable_timing=False,
+        eos_token_id=eos_id,
+        temperature=temperature,
+        top_p=0.8,
+    )
+    generated_tokens = output.sequences[:, input_ids.shape[-1] :].tolist()
+
+    _logprobs: List[List[float]] = [[] for _ in range(len(generated_tokens))]
+    for seq_idx, batch_score in enumerate(output.scores):
+        for batch_idx, score in enumerate(batch_score.tolist()):
+            _logprobs[batch_idx].append(score[generated_tokens[batch_idx][seq_idx]])
+
+    return generated_tokens, _logprobs
 
 
 @torch.inference_mode()
@@ -14,7 +47,7 @@ def generate(
     max_tokens: int,
     temperature: float,
     chunk_size: Optional[int] = None,
-    eos_id: Optional[int] = None
+    eos_id: Optional[int] = None,
 ) -> Tuple[List[List[int]], List[List[float]]]:
     model = model.eval()
     B, V = len(encoded_prompts), model.args.vocab_size
@@ -57,26 +90,16 @@ def generate(
             # Pass > 1
             last_token_logits = torch.log_softmax(last_token_prelogits, dim=-1)
             for i_seq in range(B):
-                logprobs[i_seq].append(
-                    last_token_logits[i_seq, prompt_chunks[i_seq][0]].item()
-                )
+                logprobs[i_seq].append(last_token_logits[i_seq, prompt_chunks[i_seq][0]].item())
 
         offset = 0
         for i_seq, sequence in enumerate(prompt_chunks):
-            logprobs[i_seq].extend(
-                [
-                    logits[offset + i, sequence[i + 1]].item()
-                    for i in range(len(sequence) - 1)
-                ]
-            )
+            logprobs[i_seq].extend([logits[offset + i, sequence[i + 1]].item() for i in range(len(sequence) - 1)])
             offset += len(sequence)
 
         last_token_prelogits = prelogits.index_select(
             0,
-            torch.tensor(
-                [len(p) for p in prompt_chunks], device=prelogits.device
-            ).cumsum(dim=0)
-            - 1,
+            torch.tensor([len(p) for p in prompt_chunks], device=prelogits.device).cumsum(dim=0) - 1,
         )
         assert last_token_prelogits.shape == (B, V)
 

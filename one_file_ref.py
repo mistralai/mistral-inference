@@ -14,7 +14,7 @@ from torch import nn
 
 
 @dataclass
-class ModelArgs(Serializable):
+class TransformerArgs(Serializable):
     dim: int
     n_layers: int
     head_dim: int
@@ -31,9 +31,7 @@ class ModelArgs(Serializable):
     max_batch_size: int = 0
 
 
-def repeat_kv(
-    keys: torch.Tensor, values: torch.Tensor, repeats: int
-) -> Tuple[torch.Tensor]:
+def repeat_kv(keys: torch.Tensor, values: torch.Tensor, repeats: int) -> Tuple[torch.Tensor]:
     keys = torch.repeat_interleave(keys, repeats=repeats, dim=2)
     values = torch.repeat_interleave(values, repeats=repeats, dim=2)
     return keys, values
@@ -68,7 +66,7 @@ def apply_rotary_emb(
 
 
 class Attention(nn.Module):
-    def __init__(self, args: ModelArgs):
+    def __init__(self, args: TransformerArgs):
         super().__init__()
         self.args = args
 
@@ -118,9 +116,7 @@ class Attention(nn.Module):
         xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis)
 
         # cache
-        scatter_pos = positions[None, :, None, None].repeat(
-            bsz, 1, self.n_kv_heads, self.args.head_dim
-        )
+        scatter_pos = positions[None, :, None, None].repeat(bsz, 1, self.n_kv_heads, self.args.head_dim)
         self.cache_k[:bsz].scatter_(dim=1, index=scatter_pos, src=xk)
         self.cache_v[:bsz].scatter_(dim=1, index=scatter_pos, src=xv)
 
@@ -152,7 +148,7 @@ class Attention(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, args: ModelArgs):
+    def __init__(self, args: TransformerArgs):
         super().__init__()
 
         self.w1 = nn.Linear(args.dim, args.hidden_dim, bias=False)
@@ -178,7 +174,7 @@ class RMSNorm(torch.nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, args: ModelArgs):
+    def __init__(self, args: TransformerArgs):
         super().__init__()
         self.n_heads = args.n_heads
         self.dim = args.dim
@@ -210,7 +206,7 @@ def precompute_freqs_cis(dim: int, end: int, theta: float) -> torch.Tensor:
 
 
 class Transformer(nn.Module):
-    def __init__(self, args: ModelArgs):
+    def __init__(self, args: TransformerArgs):
         super().__init__()
         self.args = args
         self.vocab_size = args.vocab_size
@@ -219,18 +215,14 @@ class Transformer(nn.Module):
 
         self.tok_embeddings = nn.Embedding(args.vocab_size, args.dim)
 
-        self.layers = torch.nn.ModuleList(
-            [TransformerBlock(args=args) for _ in range(args.n_layers)]
-        )
+        self.layers = torch.nn.ModuleList([TransformerBlock(args=args) for _ in range(args.n_layers)])
 
         self.norm = RMSNorm(args.dim, eps=args.norm_eps)
 
         self.output = nn.Linear(args.dim, args.vocab_size, bias=False)
 
         theta = self.args.rope_theta or 1000000.0
-        self.freqs_cis = precompute_freqs_cis(self.args.head_dim, 128_000, theta).to(
-            "cuda"
-        )
+        self.freqs_cis = precompute_freqs_cis(self.args.head_dim, 128_000, theta).to("cuda")
 
     def forward(
         self,
@@ -259,11 +251,9 @@ class Transformer(nn.Module):
         return self.output(self.norm(h)).float()
 
     @staticmethod
-    def from_folder(
-        folder: Path, max_batch_size: int = 1, device="cuda", dtype=torch.float16
-    ):
+    def from_folder(folder: Path, max_batch_size: int = 1, device="cuda", dtype=torch.float16):
         with open(Path(folder) / "params.json", "r") as f:
-            model_args = ModelArgs.from_dict(json.load(f))
+            model_args = TransformerArgs.from_dict(json.load(f))
         model_args.max_batch_size = max_batch_size
 
         model = Transformer(model_args)
@@ -288,9 +278,7 @@ class Transformer(nn.Module):
 
 
 def load_tokenizer(model_path: Path) -> MistralTokenizer:
-    tokenizer = [
-        f for f in os.listdir(Path(model_path)) if f.startswith("tokenizer.model")
-    ]
+    tokenizer = [f for f in os.listdir(Path(model_path)) if f.startswith("tokenizer.model")]
     assert (
         len(tokenizer) > 0
     ), f"No tokenizer found in {model_path}, make sure to place a `tokenizer.model.[v1,v2,v3]` file in {model_path}."
@@ -304,12 +292,8 @@ def load_tokenizer(model_path: Path) -> MistralTokenizer:
 
 
 @torch.no_grad()
-def generate(
-    prompts: List[str], model: Transformer, tokenizer: Tokenizer, max_tokens: int
-):
-    encoded_prompts = [
-        tokenizer.encode(prompt, bos=True, eos=False) for prompt in prompts
-    ]
+def generate(prompts: List[str], model: Transformer, tokenizer: Tokenizer, max_tokens: int):
+    encoded_prompts = [tokenizer.encode(prompt, bos=True, eos=False) for prompt in prompts]
     prompt_lens = [len(x) for x in encoded_prompts]
     min_prompt_len = min(prompt_lens)
     max_prompt_len = max(prompt_lens)
@@ -333,24 +317,18 @@ def generate(
     # decode
     generated = []
     all_logprobs = [
-        logprobs[:, :-1, :]
-        .gather(2, input_tokens[:, 1:min_prompt_len, None])
-        .squeeze(-1),
+        logprobs[:, :-1, :].gather(2, input_tokens[:, 1:min_prompt_len, None]).squeeze(-1),
     ]
     cur_pos = min_prompt_len
     for _ in range(max_tokens):
         next_token = torch.argmax(logprobs[:, -1, :], dim=-1)
         if cur_pos < input_mask.shape[1]:
-            next_token = torch.where(
-                input_mask[:, cur_pos], input_tokens[:, cur_pos], next_token
-            )
+            next_token = torch.where(input_mask[:, cur_pos], input_tokens[:, cur_pos], next_token)
         all_logprobs.append(
             logprobs[:, -1, :].gather(1, next_token[:, None]),
         )
         generated.append(next_token[:, None])
-        logits = model.forward(
-            next_token[:, None], torch.LongTensor([cur_pos]).to(next_token)
-        )
+        logits = model.forward(next_token[:, None], torch.LongTensor([cur_pos]).to(next_token))
         logprobs = nn.functional.log_softmax(logits, dim=-1)
         cur_pos += 1
 
