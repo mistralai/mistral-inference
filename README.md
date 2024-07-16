@@ -160,7 +160,7 @@ To use [Mamba-Codestral](https://mistral.ai/news/codestral/) as a coding assista
 Make sure `$7B_MAMBA_CODESTRAL` is set to a valid path to the downloaded codestral folder, e.g. `$HOME/mistral_models/mamba-codestral-7B-v0.1`.
 
 You then need to addiitonally install the following packages:
-
+  
 ```
 pip install packaging mamba-ssm causal-conv1d transformers
 ```
@@ -168,12 +168,12 @@ pip install packaging mamba-ssm causal-conv1d transformers
 before you can start chatting:
 
 ```sh
-mistral-chat $M22B_CODESTRAL --instruct --max_tokens 256
+mistral-chat $7B_MAMBA_CODESTRAL --instruct --max_tokens 256
 ```
 
 - **Chat as Math Assistant**
 
-To use [Mathstral](...) as an assistant you can run the following command using `mistral-chat`.
+To use [Mathstral](https://mistral.ai/news/mathstral/) as an assistant you can run the following command using `mistral-chat`.
 Make sure `$M7B_MATHSTRAL` is set to a valid path to the downloaded codestral folder, e.g. `$HOME/mistral_models/mathstral-7B-v0.1`
 
 ```sh
