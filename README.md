@@ -9,8 +9,8 @@ This repository contains minimal code to run our 7B, 8x7B and 8x22B models.
 Blog 7B: [https://mistral.ai/news/announcing-mistral-7b/](https://mistral.ai/news/announcing-mistral-7b/)\
 Blog 8x7B: [https://mistral.ai/news/mixtral-of-experts/](https://mistral.ai/news/mixtral-of-experts/)\
 Blog 8x22B: [https://mistral.ai/news/mixtral-8x22b/](https://mistral.ai/news/mixtral-8x22b/)\
-Blog Codestral 22B: [https://mistral.ai/news/codestral](https://mistral.ai/news/codestral/)
-Blog Codestral Mamba 7B: [https://mistral.ai/news/codestral-mamba/](https://mistral.ai/news/codestral-mamba/)
+Blog Codestral 22B: [https://mistral.ai/news/codestral](https://mistral.ai/news/codestral/) \
+Blog Codestral Mamba 7B: [https://mistral.ai/news/codestral-mamba/](https://mistral.ai/news/codestral-mamba/) \
 Blog Mathstral 7B: [https://mistral.ai/news/mathstral/](https://mistral.ai/news/mathstral/)
 
 Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistralai)\
