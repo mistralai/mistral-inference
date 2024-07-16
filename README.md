@@ -180,7 +180,7 @@ Make sure `$M7B_MATHSTRAL` is set to a valid path to the downloaded codestral fo
 mistral-chat $M7B_MATHSTRAL --instruct --max_tokens 256
 ```
 
-If you prompt it with *"Albert likes to surf every week. Each surfing session lasts for 4 hours and costs $20 per hour. How much world Albert spend in 5 weeks?"*, the model should answer with the correct calculation.
+If you prompt it with *"Albert likes to surf every week. Each surfing session lasts for 4 hours and costs $20 per hour. How much would Albert spend in 5 weeks?"*, the model should answer with the correct calculation.
 
 You can then continue chatting afterwards, *e.g.* with *"How much would he spend in a year?"*.
 
