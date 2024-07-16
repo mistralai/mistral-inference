@@ -68,13 +68,13 @@ class Mamba(ModelBase, nn.Module):
         device: Union[torch.device, str] = "cuda",
         dtype: Optional[torch.dtype] = None,
     ) -> "Mamba":
-        with open(Path(folder) / "params.json", "r") as f:
+        with open(Path(folder) / "config.json", "r") as f:
             model_args = MambaArgs.from_dict(json.load(f))
 
         with torch.device("meta"):
             model = Mamba(model_args)
 
-        model_file = Path(folder) / "consolidated.safetensors"
+        model_file = Path(folder) / "model.safetensors"
 
         assert model_file.exists(), f"Make sure {model_file} exists."
         loaded = safetensors.torch.load_file(str(model_file))
