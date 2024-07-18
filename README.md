@@ -48,8 +48,8 @@ cd $HOME/mistral-inference && poetry install .
 | Codestral 22B | https://models.mistralcdn.com/codestral-22b-v0-1/codestral-22B-v0.1.tar | `1ea95d474a1d374b1d1b20a8e0159de3` |
 | Mathstral 7B | https://models.mistralcdn.com/mathstral-7b-v0-1/mathstral-7B-v0.1.tar | `5f05443e94489c261462794b1016f10b` |
 | Codestral-Mamba 7B | https://models.mistralcdn.com/codestral-mamba-7b-v0-1/codestral-mamba-7B-v0.1.tar | `d3993e4024d1395910c55db0d11db163` |
-| Nemo Base | https://models.mistralcdn.com/mistral-nemo-v0-1/mistral-nemo-base-v0.1.tar | `c5d079ac4b55fc1ae35f51f0a3c0eb83` |
-| Nemo Instruct | https://models.mistralcdn.com/mistral-nemo-v0-1/mistral-nemo-instruct-v0.1.tar  | `296fbdf911cb88e6f0be74cd04827fe7` |
+| Nemo Base | https://models.mistralcdn.com/mistral-nemo-2407/mistral-nemo-base-2407.tar | `c5d079ac4b55fc1ae35f51f0a3c0eb83` |
+| Nemo Instruct | https://models.mistralcdn.com/mistral-nemo-2407/mistral-nemo-instruct-2407.tar | `296fbdf911cb88e6f0be74cd04827fe7` |
 
 Note: 
 - **Important**:
@@ -74,7 +74,7 @@ Download any of the above links and extract the content, *e.g.*:
 
 ```sh
 export M7B_DIR=$MISTRAL_MODEL/12B_Nemo
-wget https://models.mistralcdn.com/mistral-nemo-v0-1/mistral-nemo-instruct-v0.1.tar
+wget https://models.mistralcdn.com/mistral-nemo-2407/mistral-nemo-instruct-2407.tar
 mkdir -p $12B_DIR
 tar -xf mistral-nemo-instruct-v0.1.tar -C $12B_DIR
 ```
