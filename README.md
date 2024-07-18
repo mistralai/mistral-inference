@@ -62,7 +62,7 @@ Note:
 
 ### Usage
 
-**News!!!**: Mistral-Nemo is live. Read more about the new best small model [here](https://mistral.ai/news/mistral-nemo/).
+**News!!!**: Mistral-Nemo is out. Read more about the new best small model in town [here](https://mistral.ai/news/mistral-nemo/).
 
 Create a local folder to store models
 ```sh
