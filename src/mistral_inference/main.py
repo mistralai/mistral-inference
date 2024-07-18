@@ -26,7 +26,7 @@ def is_torchrun() -> bool:
 
 
 def load_tokenizer(model_path: Path) -> MistralTokenizer:
-    tokenizer = [f for f in os.listdir(Path(model_path)) if is_tekken(f) or is_sentencepiece(f)]
+    tokenizer = [f for f in os.listdir(model_path) if is_tekken(model_path / f) or is_sentencepiece(model_path / f)]
     assert (
         len(tokenizer) > 0
     ), f"No tokenizer in {model_path}, place a `tokenizer.model.[v1,v2,v3]` or `tekken.json` file in {model_path}."
