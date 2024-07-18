@@ -11,7 +11,7 @@ Blog 8x7B: [https://mistral.ai/news/mixtral-of-experts/](https://mistral.ai/news
 Blog 8x22B: [https://mistral.ai/news/mixtral-8x22b/](https://mistral.ai/news/mixtral-8x22b/)\
 Blog Codestral 22B: [https://mistral.ai/news/codestral](https://mistral.ai/news/codestral/) \
 Blog Codestral Mamba 7B: [https://mistral.ai/news/codestral-mamba/](https://mistral.ai/news/codestral-mamba/) \
-Blog Mathstral 7B: [https://mistral.ai/news/mathstral/](https://mistral.ai/news/mathstral/)
+Blog Mathstral 7B: [https://mistral.ai/news/mathstral/](https://mistral.ai/news/mathstral/) \
 Blog Nemo: [https://mistral.ai/news/mistral-nemo/](https://mistral.ai/news/mistral-nemo/)
 
 Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistralai)\
