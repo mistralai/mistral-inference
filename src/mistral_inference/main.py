@@ -24,7 +24,7 @@ def is_torchrun() -> bool:
 
 
 def load_tokenizer(model_path: Path) -> MistralTokenizer:
-    tokenizer = [f for f in os.listdir(Path(model_path)) if f.startswith("tokenizer.model")]
+    tokenizer = [f for f in os.listdir(Path(model_path)) if f.startswith("tokenizer.model") or f.startswith("tekken")]
     assert (
         len(tokenizer) > 0
     ), f"No tokenizer found in {model_path}, make sure to place a `tokenizer.model.[v1,v2,v3]` file in {model_path}."
