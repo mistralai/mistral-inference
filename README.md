@@ -11,7 +11,8 @@ Blog 8x7B: [https://mistral.ai/news/mixtral-of-experts/](https://mistral.ai/news
 Blog 8x22B: [https://mistral.ai/news/mixtral-8x22b/](https://mistral.ai/news/mixtral-8x22b/)\
 Blog Codestral 22B: [https://mistral.ai/news/codestral](https://mistral.ai/news/codestral/) \
 Blog Codestral Mamba 7B: [https://mistral.ai/news/codestral-mamba/](https://mistral.ai/news/codestral-mamba/) \
-Blog Mathstral 7B: [https://mistral.ai/news/mathstral/](https://mistral.ai/news/mathstral/)
+Blog Mathstral 7B: [https://mistral.ai/news/mathstral/](https://mistral.ai/news/mathstral/) \
+Blog Nemo: [https://mistral.ai/news/mistral-nemo/](https://mistral.ai/news/mistral-nemo/)
 
 Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistralai)\
 Documentation: [https://docs.mistral.ai/](https://docs.mistral.ai/)\
@@ -47,6 +48,8 @@ cd $HOME/mistral-inference && poetry install .
 | Codestral 22B | https://models.mistralcdn.com/codestral-22b-v0-1/codestral-22B-v0.1.tar | `1ea95d474a1d374b1d1b20a8e0159de3` |
 | Mathstral 7B | https://models.mistralcdn.com/mathstral-7b-v0-1/mathstral-7B-v0.1.tar | `5f05443e94489c261462794b1016f10b` |
 | Codestral-Mamba 7B | https://models.mistralcdn.com/codestral-mamba-7b-v0-1/codestral-mamba-7B-v0.1.tar | `d3993e4024d1395910c55db0d11db163` |
+| Nemo Base | https://models.mistralcdn.com/mistral-nemo-v0-1/mistral-nemo-base-v0.1.tar | `c5d079ac4b55fc1ae35f51f0a3c0eb83` |
+| Nemo Instruct | https://models.mistralcdn.com/mistral-nemo-v0-1/mistral-nemo-instruct-v0.1.tar  | `296fbdf911cb88e6f0be74cd04827fe7` |
 
 Note: 
 - **Important**:
@@ -57,6 +60,9 @@ Note:
 - The "coming soon" models will include function calling as well. 
 - You can download the previous versions of our models from our [docs](https://docs.mistral.ai/getting-started/open_weight_models/#downloading).
 
+### Usage
+
+**News!!!**: Mistral-Nemo is out. Read more about the new best small model in town [here](https://mistral.ai/news/mistral-nemo/).
 
 Create a local folder to store models
 ```sh
@@ -67,10 +73,10 @@ mkdir -p $MISTRAL_MODEL
 Download any of the above links and extract the content, *e.g.*:
 
 ```sh
-export M7B_DIR=$MISTRAL_MODEL/7B_instruct
-wget https://models.mistralcdn.com/mistral-7b-v0-3/mistral-7B-Instruct-v0.3.tar
-mkdir -p $M7B_DIR
-tar -xf mistral-7B-Instruct-v0.3.tar -C $M7B_DIR
+export M7B_DIR=$MISTRAL_MODEL/12B_Nemo
+wget https://models.mistralcdn.com/mistral-nemo-v0-1/mistral-nemo-instruct-v0.1.tar
+mkdir -p $12B_DIR
+tar -xf mistral-nemo-instruct-v0.1.tar -C $12B_DIR
 ```
 
 or 
@@ -91,10 +97,10 @@ The following sections give an overview of how to run the model from the Command
 - **Demo**
 
 To test that a model works in your setup, you can run the `mistral-demo` command.
-The 7B models can be tested on a single GPU as follows:
+*E.g.* the 12B Mistral-Nemo model can be tested on a single GPU as follows:
 
 ```sh
-mistral-demo $M7B_DIR
+mistral-demo $12B_DIR
 ```
 
 Large models, such **8x7B** and **8x22B** have to be run in a multi-GPU setup.
@@ -111,7 +117,7 @@ torchrun --nproc-per-node 2 --no-python mistral-demo $M8x7B_DIR
 To interactively chat with the models, you can make use of the `mistral-chat` command.
 
 ```sh
-mistral-chat $M7B_DIR --instruct
+mistral-chat $12B_DIR --instruct --max_tokens 1024 --temperature 0.35
 ```
 
 For large models, you can make use of `torchrun`.
@@ -197,14 +203,16 @@ from mistral_common.protocol.instruct.messages import UserMessage
 from mistral_common.protocol.instruct.request import ChatCompletionRequest
 
 
-tokenizer = MistralTokenizer.from_file("./mistral_7b_instruct/tokenizer.model.v3")  # change to extracted tokenizer file
-model = Transformer.from_folder("./mistral_7b_instruct")  # change to extracted model dir
+tokenizer = MistralTokenizer.from_file("./mistral-nemo-instruct-v0.1/tekken.json")  # change to extracted tokenizer file
+model = Transformer.from_folder("./mistral-nemo-instruct-v0.1")  # change to extracted model dir
 
-completion_request = ChatCompletionRequest(messages=[UserMessage(content="Explain Machine Learning to me in a nutshell.")])
+prompt = "How expensive would it be to ask a window cleaner to clean all windows in Paris. Make a reasonable guess in US Dollar."
+
+completion_request = ChatCompletionRequest(messages=[UserMessage(content=prompt)])
 
 tokens = tokenizer.encode_chat_completion(completion_request).tokens
 
-out_tokens, _ = generate([tokens], model, max_tokens=64, temperature=0.0, eos_id=tokenizer.instruct_tokenizer.tokenizer.eos_id)
+out_tokens, _ = generate([tokens], model, max_tokens=1024, temperature=0.35, eos_id=tokenizer.instruct_tokenizer.tokenizer.eos_id)
 result = tokenizer.instruct_tokenizer.tokenizer.decode(out_tokens[0])
 
 print(result)
