@@ -12,6 +12,8 @@ from mistral_common.protocol.instruct.messages import AssistantMessage, UserMess
 from mistral_common.protocol.instruct.request import ChatCompletionRequest
 from mistral_common.tokens.tokenizers.base import Tokenizer
 from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
+from mistral_common.tokens.tokenizers.sentencepiece import is_sentencepiece
+from mistral_common.tokens.tokenizers.tekken import is_tekken
 
 from mistral_inference.generate import generate, generate_mamba
 from mistral_inference.mamba import Mamba
@@ -24,10 +26,10 @@ def is_torchrun() -> bool:
 
 
 def load_tokenizer(model_path: Path) -> MistralTokenizer:
-    tokenizer = [f for f in os.listdir(Path(model_path)) if f.startswith("tokenizer.model") or f.startswith("tekken")]
+    tokenizer = [f for f in os.listdir(Path(model_path)) if is_tekken(f) or is_sentencepiece(f)]
     assert (
         len(tokenizer) > 0
-    ), f"No tokenizer found in {model_path}, make sure to place a `tokenizer.model.[v1,v2,v3]` file in {model_path}."
+    ), f"No tokenizer in {model_path}, place a `tokenizer.model.[v1,v2,v3]` or `tekken.json` file in {model_path}."
     assert (
         len(tokenizer) == 1
     ), f"Multiple tokenizers {', '.join(tokenizer)} found in `model_path`, make sure to only have one tokenizer"
