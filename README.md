@@ -76,7 +76,7 @@ Download any of the above links and extract the content, *e.g.*:
 export M12B_DIR=$MISTRAL_MODEL/12B_Nemo
 wget https://models.mistralcdn.com/mistral-nemo-2407/mistral-nemo-instruct-2407.tar
 mkdir -p $M12B_DIR
-tar -xf mistral-nemo-instruct-v0.1.tar -C $M12B_DIR
+tar -xf mistral-nemo-instruct-*.tar -C $M12B_DIR
 ```
 
 or 
