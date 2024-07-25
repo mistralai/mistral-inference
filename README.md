@@ -75,10 +75,10 @@ mkdir -p $MISTRAL_MODEL
 Download any of the above links and extract the content, *e.g.*:
 
 ```sh
-export M7B_DIR=$MISTRAL_MODEL/12B_Nemo
+export M12B_DIR=$MISTRAL_MODEL/12B_Nemo
 wget https://models.mistralcdn.com/mistral-nemo-2407/mistral-nemo-instruct-2407.tar
-mkdir -p $12B_DIR
-tar -xf mistral-nemo-instruct-v0.1.tar -C $12B_DIR
+mkdir -p $M12B_DIR
+tar -xf mistral-nemo-instruct-*.tar -C $M12B_DIR
 ```
 
 or 
