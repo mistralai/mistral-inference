@@ -64,7 +64,7 @@ Note:
 
 ### Usage
 
-**News!!!**: Mistral Large 2 is out. Read more about its capabilities [here](https://mistral.ai/news/mistral-nemo/).
+**News!!!**: Mistral Large 2 is out. Read more about its capabilities [here](https://mistral.ai/news/mistral-large-2407/).
 
 Create a local folder to store models
 ```sh
