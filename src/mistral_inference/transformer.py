@@ -9,7 +9,7 @@ from typing import Any, List, Mapping, Optional, Tuple, Type, Union
 import safetensors.torch
 import torch
 from torch import nn
-from torch.nn.attention import flex_attention, create_block_mask
+from torch.nn.attention.flex_attention import flex_attention, create_block_mask
 
 from mistral_inference.args import TransformerArgs
 from mistral_inference.cache import (
@@ -81,10 +81,6 @@ class Attention(nn.Module):
         xv = xv.view(seqlen_sum, self.n_kv_heads, self.head_dim)
         xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis)
 
-        xq = xq.transpose(0, 1)
-        xk = xk.transpose(0, 1)
-        xv = xv.transpose(0, 1)
-
         if cache is None:
             key, val = xk, xv
         elif cache.prefill:
@@ -102,20 +98,25 @@ class Attention(nn.Module):
         # flex_attention requires (B=1, H, S, D)
         xq, key, val = xq[None, ...], key[None, ...], val[None, ...]
 
-        import ipdb
-
-        ipdb.set_trace()
-        seq_lens = torch.tensor([i for i, count in enumerate(seq_lens) for _ in range(count)])
+        seq_lens = cache.metadata.torch_seqlens
 
         def block_causal_mask(b, h, q_idx, kv_idx):
             causal_mask = q_idx >= kv_idx
             block_mask = seq_lens[q_idx] == seq_lens[kv_idx]
             return torch.logical_and(causal_mask, block_mask)
 
-        block_mask = create_block_mask(block_causal_mask, B=None, H=None, Q_LEN=xq.shape[1], KV_LEN=key.shape[1])
+        block_mask = create_block_mask(
+            block_causal_mask, B=None, H=None, Q_LEN=xq.shape[1], KV_LEN=key.shape[1], device=xq.device
+        )
+
+        xq = xq.transpose(1, 2)
+        key = key.transpose(1, 2)
+        val = val.transpose(1, 2)
+
         output = flex_attention(xq, key, val, block_mask=block_mask, enable_gqa=True)
 
-        output = output.view(seqlen_sum, self.n_heads * self.head_dim)
+        output = output.transpose(1, 2)
+        output = output.reshape(seqlen_sum, self.n_heads * self.head_dim)
 
         assert isinstance(output, torch.Tensor)
 
@@ -272,6 +273,7 @@ class Transformer(ModelBase, LoRALoaderMixin):
                 cache_view = cache.get_view(local_layer_id, input_metadata)
             else:
                 cache_view = None
+
             h = layer(h, freqs_cis, cache_view)
 
         if cache is not None:

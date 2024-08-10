@@ -17,6 +17,10 @@ class CacheInputMetadata:
     mask: Optional[torch.Tensor]
     seqlens: List[int]
 
+    @property
+    def torch_seqlens(self) -> torch.LongTensor:
+        return torch.tensor([i for i, count in enumerate(self.seqlens) for _ in range(count)])
+
 
 def interleave_list(l1: List[torch.Tensor], l2: List[torch.Tensor]) -> List[torch.Tensor]:
     assert len(l1) == len(l2)
@@ -89,7 +93,7 @@ class CacheView:
         return self.metadata.prefill
 
     @property
-    def mask(self) -> AttentionBias:
+    def mask(self) -> Optional[torch.Tensor]:
         return self.metadata.mask
 
 

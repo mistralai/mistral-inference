@@ -84,7 +84,10 @@ def interactive(
     tokenizer: Tokenizer = mistral_tokenizer.instruct_tokenizer.tokenizer
 
     model_cls = get_model_cls(model_path)
-    model = model_cls.from_folder(Path(model_path), max_batch_size=3, num_pipeline_ranks=num_pipeline_ranks)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = model_cls.from_folder(
+        Path(model_path), max_batch_size=3, num_pipeline_ranks=num_pipeline_ranks, device=device
+    )
 
     # load LoRA
     if lora_path is not None:
@@ -155,7 +158,10 @@ def demo(
         num_pipeline_ranks = 1
 
     model_cls = get_model_cls(model_path)
-    model = model_cls.from_folder(Path(model_path), max_batch_size=3, num_pipeline_ranks=num_pipeline_ranks)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = model_cls.from_folder(
+        Path(model_path), max_batch_size=3, num_pipeline_ranks=num_pipeline_ranks, device=device
+    )
     # load LoRA
     if lora_path is not None:
         model.load_lora(Path(lora_path))
@@ -164,9 +170,9 @@ def demo(
     tokenizer: Tokenizer = mistral_tokenizer.instruct_tokenizer.tokenizer
 
     prompts = [
-        "This is a test",
-        "This is another great test",
-        "This is a third test, mistral AI is very good at testing. ",
+        10 * "This is a test",
+        10 * "This is another great test",
+        10 * "This is a third test, mistral AI is very good at testing. ",
     ]
 
     encoded_prompts = [tokenizer.encode(prompt, bos=True, eos=False) for prompt in prompts]

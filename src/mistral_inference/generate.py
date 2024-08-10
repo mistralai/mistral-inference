@@ -54,6 +54,10 @@ def generate(
 
     seqlens = [len(x) for x in encoded_prompts]
 
+    leftover = sum(seqlens) % 128
+    seqlens[-1] -= leftover
+    encoded_prompts[-1] = encoded_prompts[-1][:-leftover]
+
     # Cache
     cache_window = max(seqlens) + max_tokens
     cache = BufferCache(
