@@ -9,7 +9,7 @@ from typing import Any, List, Mapping, Optional, Tuple, Type, Union
 import safetensors.torch
 import torch
 from torch import nn
-from xformers.ops.fmha import memory_efficient_attention  # type: ignore
+from torch.nn.attention import flex_attention, create_block_mask
 
 from mistral_inference.args import TransformerArgs
 from mistral_inference.cache import (
@@ -81,6 +81,10 @@ class Attention(nn.Module):
         xv = xv.view(seqlen_sum, self.n_kv_heads, self.head_dim)
         xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis)
 
+        xq = xq.transpose(0, 1)
+        xk = xk.transpose(0, 1)
+        xv = xv.transpose(0, 1)
+
         if cache is None:
             key, val = xk, xv
         elif cache.prefill:
@@ -93,11 +97,24 @@ class Attention(nn.Module):
             val = val.view(seqlen_sum * cache.max_seq_len, self.n_kv_heads, self.head_dim)
 
         # Repeat keys and values to match number of query heads
-        key, val = repeat_kv(key, val, self.repeats, dim=1)
+        # key, val = repeat_kv(key, val, self.repeats, dim=1)
 
-        # xformers requires (B=1, S, H, D)
+        # flex_attention requires (B=1, H, S, D)
         xq, key, val = xq[None, ...], key[None, ...], val[None, ...]
-        output = memory_efficient_attention(xq, key, val, None if cache is None else cache.mask)
+
+        import ipdb
+
+        ipdb.set_trace()
+        seq_lens = torch.tensor([i for i, count in enumerate(seq_lens) for _ in range(count)])
+
+        def block_causal_mask(b, h, q_idx, kv_idx):
+            causal_mask = q_idx >= kv_idx
+            block_mask = seq_lens[q_idx] == seq_lens[kv_idx]
+            return torch.logical_and(causal_mask, block_mask)
+
+        block_mask = create_block_mask(block_causal_mask, B=None, H=None, Q_LEN=xq.shape[1], KV_LEN=key.shape[1])
+        output = flex_attention(xq, key, val, block_mask=block_mask, enable_gqa=True)
+
         output = output.view(seqlen_sum, self.n_heads * self.head_dim)
 
         assert isinstance(output, torch.Tensor)
