@@ -52,6 +52,7 @@ cd $HOME/mistral-inference && poetry install .
 | Nemo Base | https://models.mistralcdn.com/mistral-nemo-2407/mistral-nemo-base-2407.tar | `c5d079ac4b55fc1ae35f51f0a3c0eb83` |
 | Nemo Instruct | https://models.mistralcdn.com/mistral-nemo-2407/mistral-nemo-instruct-2407.tar | `296fbdf911cb88e6f0be74cd04827fe7` |
 | Mistral Large 2 | https://models.mistralcdn.com/mistral-large-2407/mistral-large-instruct-2407.tar | `fc602155f9e39151fba81fcaab2fa7c4` |
+
 Note: 
 - **Important**:
   - `mixtral-8x22B-Instruct-v0.3.tar` is exactly the same as [Mixtral-8x22B-Instruct-v0.1](https://huggingface.co/mistralai/Mixtral-8x22B-Instruct-v0.1), only stored in `.safetensors` format
