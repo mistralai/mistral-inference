@@ -3,19 +3,31 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import List, Optional, Type, Union
+from typing import List, Optional, Tuple, Type, Union
 
 import fire  # type: ignore
 import torch
 import torch.distributed as dist
-from mistral_common.protocol.instruct.messages import AssistantMessage, UserMessage
+from mistral_common.protocol.instruct.messages import (
+    AssistantMessage,
+    ContentChunk,
+    ImageChunk,
+    ImageURLChunk,
+    TextChunk,
+    UserMessage,
+)
 from mistral_common.protocol.instruct.request import ChatCompletionRequest
 from mistral_common.tokens.tokenizers.base import Tokenizer
 from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
-from mistral_common.tokens.tokenizers.tekken import Tekkenizer, SpecialTokenPolicy
 from mistral_common.tokens.tokenizers.sentencepiece import is_sentencepiece
-from mistral_common.tokens.tokenizers.tekken import is_tekken
+from mistral_common.tokens.tokenizers.tekken import (
+    SpecialTokenPolicy,
+    Tekkenizer,
+    is_tekken,
+)
+from PIL import Image
 
+from mistral_inference.args import TransformerArgs
 from mistral_inference.generate import generate, generate_mamba
 from mistral_inference.mamba import Mamba
 from mistral_inference.transformer import Transformer
@@ -62,6 +74,31 @@ def pad_and_convert_to_tensor(list_of_lists: List[List[int]], pad_id: int) -> Li
     return padded_lists
 
 
+def _get_multimodal_input() -> Tuple[UserMessage, bool]:
+    chunks: List[ContentChunk] = []
+
+    response = input("Text prompt: ")
+    if response:
+        chunks.append(TextChunk(text=response))
+
+    print("[You can input zero, one or more images now.]")
+    while True:
+        did_something = False
+        response = input("Image path or url [Leave empty and press enter to finish image input]: ")
+        if response:
+            if Path(response).is_file():
+                chunks.append(ImageChunk(image=Image.open(response)))
+            else:
+                assert response.startswith("http"), f"{response} does not seem to be a valid url."
+                chunks.append(ImageURLChunk(image_url=response))
+            did_something = True
+
+        if not did_something:
+            break
+
+    return UserMessage(content=chunks), not chunks
+
+
 def interactive(
     model_path: str,
     max_tokens: int = 35,
@@ -85,6 +122,10 @@ def interactive(
 
     model_cls = get_model_cls(model_path)
     model = model_cls.from_folder(Path(model_path), max_batch_size=3, num_pipeline_ranks=num_pipeline_ranks)
+    is_multimodal = isinstance(model.args, TransformerArgs) and model.args.vision_encoder is not None
+
+    if is_multimodal:
+        assert instruct, "Multimodal models should only be used in instruct mode"
 
     # load LoRA
     if lora_path is not None:
@@ -95,17 +136,27 @@ def interactive(
 
     while True:
         if should_print:
-            user_input = input("Prompt: ")
+            if not is_multimodal:
+                user_input = input("Prompt: ")
 
             if instruct:
-                messages += [UserMessage(content=user_input)]
+                if is_multimodal:
+                    mm_input, finished = _get_multimodal_input()
+                    if finished:
+                        break
+                    messages += [mm_input]
+                else:
+                    messages += [UserMessage(content=user_input)]
                 chat_completion_request = ChatCompletionRequest(messages=messages)
 
-                tokens = mistral_tokenizer.encode_chat_completion(chat_completion_request).tokens
+                tokenized = mistral_tokenizer.encode_chat_completion(chat_completion_request)
+                tokens = tokenized.tokens
+                images = tokenized.images
             else:
                 prompt += user_input
 
                 tokens = tokenizer.encode(prompt, bos=True, eos=False)
+                images = []
 
             length_tensor = torch.tensor([len(tokens)], dtype=torch.int)
         else:
@@ -121,6 +172,7 @@ def interactive(
         generated_tokens, _ = generate_fn(  # type: ignore[operator]
             [tokens],
             model,
+            [images],
             max_tokens=max_tokens,
             temperature=temperature,
             eos_id=tokenizer.eos_id,
