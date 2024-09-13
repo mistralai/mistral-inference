@@ -2,25 +2,20 @@ import json
 import logging
 import math
 from dataclasses import dataclass
-from functools import partial
 from pathlib import Path
-from typing import Any, List, Mapping, Optional, Tuple, Type, Union
+from typing import Any, List, Mapping, Optional, Union
 
 import safetensors.torch
 import torch
 from torch import nn
-from xformers.ops.fmha import memory_efficient_attention  # type: ignore
 
 from mistral_inference.args import TransformerArgs
-from mistral_inference.cache import (
-    BufferCache,
-    CacheInputMetadata,
-    CacheView,
-)
-from mistral_inference.lora import LoRALinear, LoRALoaderMixin
+from mistral_inference.cache import BufferCache, CacheInputMetadata
+from mistral_inference.lora import LoRALoaderMixin
 from mistral_inference.model import ModelBase
-from mistral_inference.moe import MoeLayer
-from mistral_inference.rope import apply_rotary_emb, precompute_freqs_cis
+from mistral_inference.rope import precompute_freqs_cis
+from mistral_inference.transformer_layers import RMSNorm, TransformerBlock
+from mistral_inference.vision_encoder import VisionLanguageAdapter, VisionTransformer
 
 
 @dataclass
@@ -33,131 +28,6 @@ class SimpleInputMetadata:
         return SimpleInputMetadata(
             positions=torch.cat([torch.arange(0, seqlen) for seqlen in seqlens]).to(device=device, dtype=torch.long)
         )
-
-
-def repeat_kv(keys: torch.Tensor, values: torch.Tensor, repeats: int, dim: int) -> Tuple[torch.Tensor, torch.Tensor]:
-    keys = torch.repeat_interleave(keys, repeats=repeats, dim=dim)
-    values = torch.repeat_interleave(values, repeats=repeats, dim=dim)
-    return keys, values
-
-
-def maybe_lora(args: TransformerArgs) -> Union[Type[nn.Linear], partial[LoRALinear]]:
-    if args.lora is None:
-        return nn.Linear
-    else:
-        return partial(LoRALinear, rank=args.lora.rank, scaling=args.lora.scaling)
-
-
-class Attention(nn.Module):
-    def __init__(self, args: TransformerArgs):
-        super().__init__()
-        self.args = args
-
-        self.n_heads: int = args.n_heads
-        self.head_dim: int = args.head_dim
-        self.n_kv_heads: int = args.n_kv_heads
-
-        self.repeats = self.n_heads // self.n_kv_heads
-
-        self.scale = self.args.head_dim**-0.5
-
-        MaybeLora = maybe_lora(args)
-        self.wq = MaybeLora(args.dim, args.n_heads * args.head_dim, bias=False)
-        self.wk = MaybeLora(args.dim, args.n_kv_heads * args.head_dim, bias=False)
-        self.wv = MaybeLora(args.dim, args.n_kv_heads * args.head_dim, bias=False)
-        self.wo = MaybeLora(args.n_heads * args.head_dim, args.dim, bias=False)
-
-    def forward(
-        self,
-        x: torch.Tensor,
-        freqs_cis: torch.Tensor,
-        cache: Optional[CacheView],
-    ) -> torch.Tensor:
-        seqlen_sum, _ = x.shape
-
-        xq, xk, xv = self.wq(x), self.wk(x), self.wv(x)
-        xq = xq.view(seqlen_sum, self.n_heads, self.head_dim)
-        xk = xk.view(seqlen_sum, self.n_kv_heads, self.head_dim)
-        xv = xv.view(seqlen_sum, self.n_kv_heads, self.head_dim)
-        xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis)
-
-        if cache is None:
-            key, val = xk, xv
-        elif cache.prefill:
-            key, val = cache.interleave_kv(xk, xv)
-            cache.update(xk, xv)
-        else:
-            cache.update(xk, xv)
-            key, val = cache.key, cache.value
-            key = key.view(seqlen_sum * cache.max_seq_len, self.n_kv_heads, self.head_dim)
-            val = val.view(seqlen_sum * cache.max_seq_len, self.n_kv_heads, self.head_dim)
-
-        # Repeat keys and values to match number of query heads
-        key, val = repeat_kv(key, val, self.repeats, dim=1)
-
-        # xformers requires (B=1, S, H, D)
-        xq, key, val = xq[None, ...], key[None, ...], val[None, ...]
-        output = memory_efficient_attention(xq, key, val, None if cache is None else cache.mask)
-        output = output.view(seqlen_sum, self.n_heads * self.head_dim)
-
-        assert isinstance(output, torch.Tensor)
-
-        return self.wo(output)  # type: ignore
-
-
-class FeedForward(nn.Module):
-    def __init__(self, args: TransformerArgs):
-        super().__init__()
-
-        MaybeLora = maybe_lora(args)
-        self.w1 = MaybeLora(args.dim, args.hidden_dim, bias=False)
-        self.w2 = MaybeLora(args.hidden_dim, args.dim, bias=False)
-        self.w3 = MaybeLora(args.dim, args.hidden_dim, bias=False)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.w2(nn.functional.silu(self.w1(x)) * self.w3(x))  # type: ignore
-
-
-class RMSNorm(torch.nn.Module):
-    def __init__(self, dim: int, eps: float = 1e-6):
-        super().__init__()
-        self.eps = eps
-        self.weight = nn.Parameter(torch.ones(dim))
-
-    def _norm(self, x: torch.Tensor) -> torch.Tensor:
-        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        output = self._norm(x.float()).type_as(x)
-        return output * self.weight
-
-
-class TransformerBlock(nn.Module):
-    def __init__(self, args: TransformerArgs):
-        super().__init__()
-        self.n_heads = args.n_heads
-        self.dim = args.dim
-        self.attention = Attention(args)
-        self.attention_norm = RMSNorm(args.dim, eps=args.norm_eps)
-        self.ffn_norm = RMSNorm(args.dim, eps=args.norm_eps)
-        self.args = args
-
-        self.feed_forward: nn.Module
-        if args.moe is not None:
-            self.feed_forward = MoeLayer(
-                experts=[FeedForward(args=args) for _ in range(args.moe.num_experts)],
-                gate=nn.Linear(args.dim, args.moe.num_experts, bias=False),
-                moe_args=args.moe,
-            )
-        else:
-            self.feed_forward = FeedForward(args=args)
-
-    def forward(self, x: torch.Tensor, freqs_cis: torch.Tensor, cache: Optional[CacheView]) -> torch.Tensor:
-        r = self.attention.forward(self.attention_norm(x), freqs_cis, cache)
-        h = x + r
-        r = self.feed_forward.forward(self.ffn_norm(h))
-        out = h + r
-        return out
 
 
 class Transformer(ModelBase, LoRALoaderMixin):
@@ -182,11 +52,29 @@ class Transformer(ModelBase, LoRALoaderMixin):
         self.output: Optional[nn.Linear] = None
         if pipeline_rank == 0:
             self.tok_embeddings = nn.Embedding(args.vocab_size, args.dim)
+
+            self.vision_encoder: Optional[VisionTransformer] = None
+            self.vision_language_adapter: Optional[VisionLanguageAdapter] = None
+            if args.vision_encoder is not None:
+                self.vision_encoder = VisionTransformer(args.vision_encoder)
+                self.vision_language_adapter = VisionLanguageAdapter(args.vision_encoder.hidden_size, args.dim)
         if pipeline_rank == num_pipeline_ranks - 1:
             self.norm = RMSNorm(args.dim, eps=args.norm_eps)
             self.output = nn.Linear(args.dim, args.vocab_size, bias=False)
         # Initialize all layers but slice off those not of this rank.
-        layers = [TransformerBlock(args=args) for _ in range(args.n_layers)]
+        layers = [
+            TransformerBlock(
+                dim=args.dim,
+                hidden_dim=args.hidden_dim,
+                n_heads=args.n_heads,
+                n_kv_heads=args.n_kv_heads,
+                head_dim=args.head_dim,
+                norm_eps=args.norm_eps,
+                lora=args.lora,
+                moe=args.moe,
+            )
+            for _ in range(args.n_layers)
+        ]
         num_layers_per_rank = math.ceil(self.n_layers / self.num_pipeline_ranks)
         offset = self.pipeline_rank * num_layers_per_rank
         end = min(self.n_layers, offset + num_layers_per_rank)
@@ -215,11 +103,41 @@ class Transformer(ModelBase, LoRALoaderMixin):
             self._precomputed_freqs_cis = self._precomputed_freqs_cis.to(device=self.device)
         return self._precomputed_freqs_cis
 
+    def embed_vision_language_features(self, input_ids: torch.Tensor, images: List[torch.tensor]) -> torch.Tensor:  # type: ignore[valid-type]
+        assert self.tok_embeddings is not None
+        assert self.vision_encoder is not None
+        assert self.vision_language_adapter is not None
+        assert self.args.vision_encoder is not None
+
+        text_locations = input_ids != self.args.vision_encoder.image_token_id
+        image_locations = input_ids == self.args.vision_encoder.image_token_id
+        text_features = self.tok_embeddings(input_ids[text_locations])
+        image_features = self.vision_language_adapter(self.vision_encoder(images))
+
+        seq_len = input_ids.shape[0]
+        N_txt, D_txt = text_features.shape
+        N_img, D_img = image_features.shape
+
+        assert D_txt == D_img, f"Text features dim {D_txt} should be equal to image features dim {D_img}"
+        assert (
+            seq_len == N_txt + N_img
+        ), f"seq_len {seq_len} should be equal to N_txt + N_img {(N_txt, N_img, image_locations.sum().item())}"
+
+        combined_features = torch.empty(
+            (seq_len, D_txt),
+            dtype=text_features.dtype,
+            device=text_features.device,
+        )
+        combined_features[text_locations, :] = text_features
+        combined_features[image_locations, :] = image_features
+        return combined_features
+
     def forward_partial(
         self,
         input_ids: torch.Tensor,
         seqlens: List[int],
         cache: Optional[BufferCache] = None,
+        images: Optional[List[torch.Tensor]] = None,
     ) -> torch.Tensor:
         """Local forward pass.
 
@@ -241,7 +159,10 @@ class Transformer(ModelBase, LoRALoaderMixin):
 
         if self.pipeline_rank == 0:
             assert self.tok_embeddings is not None
-            h = self.tok_embeddings(input_ids)
+            if self.vision_encoder is not None and images:
+                h = self.embed_vision_language_features(input_ids, images)
+            else:
+                h = self.tok_embeddings(input_ids)
         else:
             h = torch.empty(num_toks, self.args.dim, device=self.device, dtype=self.dtype)
             torch.distributed.recv(h, src=self.pipeline_rank - 1)
@@ -261,7 +182,7 @@ class Transformer(ModelBase, LoRALoaderMixin):
             cache.update_seqlens(seqlens)
         if self.pipeline_rank < self.num_pipeline_ranks - 1:
             torch.distributed.send(h, dst=self.pipeline_rank + 1)
-            return h  # type: ignore
+            return h
         else:
             # Last rank has a final normalization step.
             assert self.norm is not None
@@ -272,8 +193,9 @@ class Transformer(ModelBase, LoRALoaderMixin):
         input_ids: torch.Tensor,
         seqlens: List[int],
         cache: Optional[BufferCache] = None,
+        images: Optional[List[torch.Tensor]] = None,
     ) -> torch.Tensor:
-        h = self.forward_partial(input_ids, seqlens, cache=cache)
+        h = self.forward_partial(input_ids, seqlens, cache=cache, images=images)
         if self.pipeline_rank < self.num_pipeline_ranks - 1:
             # ignore the intermediate activations as we'll get the final output from
             # the last stage
@@ -320,6 +242,9 @@ class Transformer(ModelBase, LoRALoaderMixin):
                         self.pipeline_rank,
                     )
                     skipped.add(k)
+            elif k.startswith("vision_encoder") or k.startswith("vision_language_adapter"):
+                assert not self.pipeline_rank
+                state_to_load[k] = v
             else:
                 raise ValueError(f"Unexpected key {k}")
         assert set(state_dict.keys()) == skipped.union(set(state_to_load.keys()))

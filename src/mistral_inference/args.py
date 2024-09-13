@@ -8,6 +8,19 @@ from mistral_inference.moe import MoeArgs
 
 
 @dataclass
+class VisionEncoderArgs:
+    hidden_size: int
+    num_channels: int
+    image_size: int
+    patch_size: int
+    intermediate_size: int
+    num_hidden_layers: int
+    num_attention_heads: int
+    rope_theta: float = 1e4  # for rope-2D
+    image_token_id: int = 10
+
+
+@dataclass
 class TransformerArgs(Serializable):
     dim: int
     n_layers: int
@@ -28,7 +41,9 @@ class TransformerArgs(Serializable):
     lora: Optional[LoraArgs] = None
     model_type: str = "transformer"
 
-    def __post_init__(self):
+    vision_encoder: Optional[VisionEncoderArgs] = None
+
+    def __post_init__(self) -> None:
         assert self.model_type == "transformer", self.model_type
 
 
@@ -45,5 +60,5 @@ class MambaArgs(Serializable):
     tie_embeddings: bool
     model_type: str = "mamba"
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         assert self.model_type == "mamba", self.model_type
