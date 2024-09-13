@@ -14,7 +14,7 @@ from mistral_inference.cache import BufferCache, CacheInputMetadata
 from mistral_inference.lora import LoRALoaderMixin
 from mistral_inference.model import ModelBase
 from mistral_inference.rope import precompute_freqs_cis
-from mistral_inference.transformer_utils import RMSNorm, TransformerBlock
+from mistral_inference.transformer_layers import RMSNorm, TransformerBlock
 from mistral_inference.vision_encoder import VisionLanguageAdapter, VisionTransformer
 
 

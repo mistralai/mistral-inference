@@ -6,34 +6,7 @@ from xformers.ops.fmha.attn_bias import BlockDiagonalMask
 
 from mistral_inference.args import VisionEncoderArgs
 from mistral_inference.rope import precompute_freqs_cis_2d
-from mistral_inference.transformer_utils import RMSNorm, TransformerBlock
-
-
-class Transformer(nn.Module):
-    def __init__(self, args: VisionEncoderArgs):
-        super().__init__()
-        self.layers = torch.nn.ModuleList()
-        for _ in range(args.num_hidden_layers):
-            self.layers.append(
-                TransformerBlock(
-                    dim=args.hidden_size,
-                    hidden_dim=args.intermediate_size,
-                    n_heads=args.num_attention_heads,
-                    n_kv_heads=args.num_attention_heads,
-                    head_dim=args.hidden_size // args.num_attention_heads,
-                    norm_eps=1e-5,
-                )
-            )
-
-    def forward(
-        self,
-        x: torch.Tensor,
-        mask: BlockDiagonalMask,
-        freqs_cis: Optional[torch.Tensor],
-    ) -> torch.Tensor:
-        for layer in self.layers:
-            x = layer(x, mask=mask, freqs_cis=freqs_cis)
-        return x
+from mistral_inference.transformer_layers import RMSNorm, TransformerBlock
 
 
 def position_meshgrid(
@@ -67,7 +40,7 @@ class VisionTransformer(nn.Module):
             bias=False,
         )
         self.ln_pre = RMSNorm(args.hidden_size, eps=1e-5)
-        self.transformer = Transformer(args)
+        self.transformer = VisionTransformerBlocks(args)
 
         head_dim = self.args.hidden_size // self.args.num_attention_heads
         assert head_dim % 2 == 0, "ROPE requires even head_dim"
@@ -142,3 +115,32 @@ class VisionLanguageAdapter(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.w_out(self.gelu(self.w_in(x)))  # type: ignore[no-any-return]
+
+
+class VisionTransformerBlocks(nn.Module):
+    def __init__(self, args: VisionEncoderArgs):
+        super().__init__()
+        self.layers = torch.nn.ModuleList()
+        for _ in range(args.num_hidden_layers):
+            self.layers.append(
+                TransformerBlock(
+                    dim=args.hidden_size,
+                    hidden_dim=args.intermediate_size,
+                    n_heads=args.num_attention_heads,
+                    n_kv_heads=args.num_attention_heads,
+                    head_dim=args.hidden_size // args.num_attention_heads,
+                    norm_eps=1e-5,
+                )
+            )
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        mask: BlockDiagonalMask,
+        freqs_cis: Optional[torch.Tensor],
+    ) -> torch.Tensor:
+        for layer in self.layers:
+            x = layer(x, mask=mask, freqs_cis=freqs_cis)
+        return x
+
+
