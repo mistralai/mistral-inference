@@ -72,6 +72,7 @@ def generate(
         cache_window,
         model.args.n_kv_heads,
         model.args.head_dim,
+        model.args.sliding_window,
     )
     cache.to(device=model.device, dtype=model.dtype)
     cache.reset()

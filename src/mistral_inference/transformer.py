@@ -150,12 +150,12 @@ class Transformer(ModelBase, LoRALoaderMixin):
         (num_toks,) = input_ids.shape
         assert sum(seqlens) == num_toks, (sum(seqlens), num_toks)
 
-        input_metadata: Union[CacheInputMetadata, SimpleInputMetadata]
+        input_metadata: List[Union[CacheInputMetadata, SimpleInputMetadata]]
 
         if cache is not None:
             input_metadata = cache.get_input_metadata(seqlens)
         else:
-            input_metadata = SimpleInputMetadata.from_seqlens(seqlens, self.device)
+            input_metadata = [SimpleInputMetadata.from_seqlens(seqlens, self.device) for _ in range(len(self.layers))]
 
         if self.pipeline_rank == 0:
             assert self.tok_embeddings is not None
@@ -167,13 +167,14 @@ class Transformer(ModelBase, LoRALoaderMixin):
             h = torch.empty(num_toks, self.args.dim, device=self.device, dtype=self.dtype)
             torch.distributed.recv(h, src=self.pipeline_rank - 1)
 
-        freqs_cis = self.freqs_cis[input_metadata.positions]
+        # freqs_cis is always the same for every layer
+        freqs_cis = self.freqs_cis[input_metadata[0].positions]
 
         for local_layer_id, layer in enumerate(self.layers.values()):
             if cache is not None:
                 assert input_metadata is not None
-                assert isinstance(input_metadata, CacheInputMetadata)
-                cache_view = cache.get_view(local_layer_id, input_metadata)
+                assert isinstance(input_metadata[local_layer_id], CacheInputMetadata)
+                cache_view = cache.get_view(local_layer_id, input_metadata[local_layer_id])
             else:
                 cache_view = None
             h = layer(h, freqs_cis, cache_view)

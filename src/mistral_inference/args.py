@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 
 from simple_parsing.helpers import Serializable
 
@@ -39,12 +39,18 @@ class TransformerArgs(Serializable):
     moe: Optional[MoeArgs] = None
     # If this is set, we will load LoRA linear layers instead of linear layers.
     lora: Optional[LoraArgs] = None
+    sliding_window: Optional[int] | Optional[List[int]] = None
+    _sliding_window: Optional[int] | Optional[List[int]] = None
     model_type: str = "transformer"
 
     vision_encoder: Optional[VisionEncoderArgs] = None
 
     def __post_init__(self) -> None:
         assert self.model_type == "transformer", self.model_type
+        assert self.sliding_window is None or self._sliding_window is None
+
+        # hack for now so that vLLM is supported correctly
+        self.sliding_window = self.sliding_window if self.sliding_window is not None else self._sliding_window
 
 
 @dataclass
