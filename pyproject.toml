@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mistral_inference"
-version = "1.4.0"
+version = "1.5.0"
 description = ""
 authors = ["bam4d <bam4d@mistral.ai>"]
 readme = "README.md"
