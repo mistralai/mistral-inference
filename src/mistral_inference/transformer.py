@@ -36,6 +36,7 @@ class Transformer(ModelBase, LoRALoaderMixin):
         args: TransformerArgs,
         pipeline_rank: int = 0,
         num_pipeline_ranks: int = 1,
+        softmax_fp32: bool = True,
     ):
         super().__init__()
         self.args = args
@@ -46,6 +47,8 @@ class Transformer(ModelBase, LoRALoaderMixin):
         assert pipeline_rank < num_pipeline_ranks, (pipeline_rank, num_pipeline_ranks)
         self.pipeline_rank = pipeline_rank
         self.num_pipeline_ranks = num_pipeline_ranks
+        self.softmax_fp32 = softmax_fp32
+
         # Modules specific to some ranks:
         self.tok_embeddings: Optional[nn.Embedding] = None
         self.norm: Optional[RMSNorm] = None
@@ -150,12 +153,12 @@ class Transformer(ModelBase, LoRALoaderMixin):
         (num_toks,) = input_ids.shape
         assert sum(seqlens) == num_toks, (sum(seqlens), num_toks)
 
-        input_metadata: Union[CacheInputMetadata, SimpleInputMetadata]
+        input_metadata: List[CacheInputMetadata] | List[SimpleInputMetadata]
 
         if cache is not None:
             input_metadata = cache.get_input_metadata(seqlens)
         else:
-            input_metadata = SimpleInputMetadata.from_seqlens(seqlens, self.device)
+            input_metadata = [SimpleInputMetadata.from_seqlens(seqlens, self.device) for _ in range(len(self.layers))]
 
         if self.pipeline_rank == 0:
             assert self.tok_embeddings is not None
@@ -167,13 +170,15 @@ class Transformer(ModelBase, LoRALoaderMixin):
             h = torch.empty(num_toks, self.args.dim, device=self.device, dtype=self.dtype)
             torch.distributed.recv(h, src=self.pipeline_rank - 1)
 
-        freqs_cis = self.freqs_cis[input_metadata.positions]
+        # freqs_cis is always the same for every layer
+        freqs_cis = self.freqs_cis[input_metadata[0].positions]
 
         for local_layer_id, layer in enumerate(self.layers.values()):
             if cache is not None:
                 assert input_metadata is not None
-                assert isinstance(input_metadata, CacheInputMetadata)
-                cache_view = cache.get_view(local_layer_id, input_metadata)
+                cache_metadata = input_metadata[local_layer_id]
+                assert isinstance(cache_metadata, CacheInputMetadata)
+                cache_view = cache.get_view(local_layer_id, cache_metadata)
             else:
                 cache_view = None
             h = layer(h, freqs_cis, cache_view)
@@ -205,7 +210,11 @@ class Transformer(ModelBase, LoRALoaderMixin):
             outs = self.output(h)
         if self.num_pipeline_ranks > 1:
             torch.distributed.broadcast(outs, src=self.num_pipeline_ranks - 1)
-        return outs.float()
+
+        if self.softmax_fp32:
+            return outs.float()
+        else:
+            return outs
 
     def load_state_dict(self, state_dict: Mapping[str, Any], strict: bool = True, assign: bool = False) -> None:
         state_to_load = {}
@@ -257,6 +266,7 @@ class Transformer(ModelBase, LoRALoaderMixin):
         num_pipeline_ranks: int = 1,
         device: Union[torch.device, str] = "cuda",
         dtype: Optional[torch.dtype] = None,
+        softmax_fp32: bool = True,
     ) -> "Transformer":
         with open(Path(folder) / "params.json", "r") as f:
             model_args = TransformerArgs.from_dict(json.load(f))
@@ -270,6 +280,7 @@ class Transformer(ModelBase, LoRALoaderMixin):
                 model_args,
                 pipeline_rank=pipeline_rank,
                 num_pipeline_ranks=num_pipeline_ranks,
+                softmax_fp32=softmax_fp32,
             )
 
         pt_model_file = Path(folder) / "consolidated.00.pth"
