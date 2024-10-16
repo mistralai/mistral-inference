@@ -150,7 +150,7 @@ class Transformer(ModelBase, LoRALoaderMixin):
         (num_toks,) = input_ids.shape
         assert sum(seqlens) == num_toks, (sum(seqlens), num_toks)
 
-        input_metadata: List[Union[CacheInputMetadata, SimpleInputMetadata]]
+        input_metadata: List[CacheInputMetadata] | List[SimpleInputMetadata]
 
         if cache is not None:
             input_metadata = cache.get_input_metadata(seqlens)
@@ -173,8 +173,9 @@ class Transformer(ModelBase, LoRALoaderMixin):
         for local_layer_id, layer in enumerate(self.layers.values()):
             if cache is not None:
                 assert input_metadata is not None
-                assert isinstance(input_metadata[local_layer_id], CacheInputMetadata)
-                cache_view = cache.get_view(local_layer_id, input_metadata[local_layer_id])
+                cache_metadata = input_metadata[local_layer_id]
+                assert isinstance(cache_metadata, CacheInputMetadata)
+                cache_view = cache.get_view(local_layer_id, cache_metadata)
             else:
                 cache_view = None
             h = layer(h, freqs_cis, cache_view)
