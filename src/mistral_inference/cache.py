@@ -152,7 +152,6 @@ class BufferCache:
         head_dim: int,
         sliding_window: Optional[int] | Optional[List[int]] = None,
     ):
-        print(f"yeeeees {sliding_window}")
         self.max_seq_len = max_seq_len
         self.n_kv_heads = n_kv_heads
         self.head_dim = head_dim
