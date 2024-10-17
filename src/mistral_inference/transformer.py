@@ -162,7 +162,7 @@ class Transformer(ModelBase, LoRALoaderMixin):
 
         if self.pipeline_rank == 0:
             assert self.tok_embeddings is not None
-            if self.vision_encoder is not None and images:
+            if self.vision_encoder is not None and images is not None:
                 h = self.embed_vision_language_features(input_ids, images)
             else:
                 h = self.tok_embeddings(input_ids)
