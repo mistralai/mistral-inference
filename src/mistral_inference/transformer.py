@@ -281,8 +281,15 @@ class Transformer(ModelBase, LoRALoaderMixin):
                 k.startswith(key)
                 for key in ["vision_encoder", "vision_language_adapter", "patch_merger", "pre_mm_projector_norm"]
             ):
-                assert not self.pipeline_rank
-                state_to_load[k] = v
+                if self.pipeline_rank == 0:
+                    state_to_load[k] = v
+                else:
+                    logging.debug(
+                        "Skipping parameter %s at pipeline rank %d",
+                        k,
+                        self.pipeline_rank,
+                    )
+                    skipped.add(k)
             else:
                 raise ValueError(f"Unexpected key {k}")
         assert set(state_dict.keys()) == skipped.union(set(state_to_load.keys()))

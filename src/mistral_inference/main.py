@@ -161,6 +161,7 @@ def interactive(
             length_tensor = torch.tensor([len(tokens)], dtype=torch.int)
         else:
             length_tensor = torch.tensor([0], dtype=torch.int)
+            images = []
 
         if is_torchrun():
             dist.broadcast(length_tensor, src=0)
