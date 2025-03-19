@@ -6,6 +6,8 @@ from simple_parsing.helpers import Serializable
 from mistral_inference.lora import LoraArgs
 from mistral_inference.moe import MoeArgs
 
+PATCH_MERGE = "patch_merge"
+
 
 @dataclass
 class VisionEncoderArgs:
@@ -18,6 +20,10 @@ class VisionEncoderArgs:
     num_attention_heads: int
     rope_theta: float = 1e4  # for rope-2D
     image_token_id: int = 10
+    adapter_bias: bool = True
+    spatial_merge_size: int = 1
+    add_pre_mm_projector_layer_norm: bool = False
+    mm_projector_id: str = ""
 
 
 @dataclass

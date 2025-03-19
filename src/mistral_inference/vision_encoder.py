@@ -103,15 +103,15 @@ class VisionTransformer(nn.Module):
 
 
 class VisionLanguageAdapter(nn.Module):
-    def __init__(self, in_dim: int, out_dim: int):
+    def __init__(self, in_dim: int, out_dim: int, bias: bool = True):
         super().__init__()
         self.w_in = nn.Linear(
             in_dim,
             out_dim,
-            bias=True,
+            bias=bias,
         )
         self.gelu = nn.GELU()
-        self.w_out = nn.Linear(out_dim, out_dim, bias=True)
+        self.w_out = nn.Linear(out_dim, out_dim, bias=bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.w_out(self.gelu(self.w_in(x)))  # type: ignore[no-any-return]
@@ -144,3 +144,91 @@ class VisionTransformerBlocks(nn.Module):
         return x
 
 
+class PatchMerger(nn.Module):
+    """
+    Learned merging of spatial_merge_size ** 2 patches
+    """
+
+    def __init__(
+        self,
+        vision_encoder_dim: int,
+        spatial_merge_size: int,
+        use_mlp_bias: bool = False,
+    ) -> None:
+        super().__init__()
+
+        mlp_input_dim = vision_encoder_dim * (spatial_merge_size**2)
+
+        self.spatial_merge_size = spatial_merge_size
+        self.mlp_input_dim = mlp_input_dim
+
+        self.merging_layer = nn.Linear(
+            mlp_input_dim,
+            vision_encoder_dim,
+            bias=use_mlp_bias,
+        )
+
+    def forward(self, x: torch.Tensor, image_sizes: list[tuple[int, int]]) -> torch.Tensor:
+        # image_sizes specified in tokens
+        assert sum([h * w for h, w in image_sizes]) == len(x)
+
+        # x is (N, vision_encoder_dim)
+        x = self.permute(x, image_sizes)
+
+        # x is (N / spatial_merge_size ** 2,
+        #       vision_encoder_dim * spatial_merge_size ** 2)
+        x = self.merging_layer(x)
+
+        # x is (N / spatial_merge_size ** 2, vision_encoder_dim)
+        return x
+
+    def permute(
+        self,
+        x: torch.Tensor,
+        image_sizes: list[tuple[int, int]],
+    ) -> torch.Tensor:
+        """
+        Args:
+            x: (N, D) where N is flattened and concatenated patch tokens
+                for all images
+            image_sizes: list of tuple of (height, width) in tokens for
+                each image
+        Returns:
+            image_features: reorders patch tokens so each grid of
+                (spatial_merge_size, spatial_merge_size) is contiguous.
+                now (N / spatial_merge_size ** 2, D * spatial_merge_size ** 2)
+        """
+
+        sub_grids = get_sub_grids(
+            x=x, image_sizes=image_sizes, spatial_merge_size=self.spatial_merge_size
+        )  # list of [d x sub_grid_size x sub_grid_size x n_patches]
+        permuted_tensor: list[torch.Tensor] = []
+        for grid in sub_grids:
+            n_patches = grid.shape[-1]
+            permuted_tensor.append(grid.view(-1, n_patches).t())  # n_patches x d * sub_grid_size * sub_grid_size
+        return torch.cat(permuted_tensor, dim=0)  # (N / spatial_merge_size ** 2, d * spatial_merge_size ** 2)
+
+
+def get_sub_grids(
+    x: torch.Tensor,
+    image_sizes: list[tuple[int, int]],
+    spatial_merge_size: int,
+) -> list[torch.Tensor]:
+    # image_sizes specified in tokens
+    tokens_per_image = [h * w for h, w in image_sizes]
+    d = x.shape[-1]
+    all_img_sub_grids: list[torch.Tensor] = []
+    sub_grid_size = spatial_merge_size
+
+    for image_index, image_tokens in enumerate(x.split(tokens_per_image)):
+        # Reshape image_tokens into a 2D grid
+        h, w = image_sizes[image_index]
+        image_grid = image_tokens.view(h, w, d).permute(2, 0, 1)[None, :, :, :]  # 1 x d x h x w
+        sub_grids = torch.nn.functional.unfold(image_grid, kernel_size=sub_grid_size, stride=sub_grid_size)
+        sub_grids = sub_grids.view(
+            1, d, sub_grid_size, sub_grid_size, -1
+        )  # 1 x d x sub_grid_size x sub_grid_size x n_patches
+
+        all_img_sub_grids.append(sub_grids[0])
+
+    return all_img_sub_grids
