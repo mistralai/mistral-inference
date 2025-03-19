@@ -39,6 +39,8 @@ cd $HOME/mistral-inference && poetry install .
 
 ## Model download
 
+### Direct links
+
 | Name        | Download | md5sum |
 |-------------|-------|-------|
 | 7B Instruct | https://models.mistralcdn.com/mistral-7b-v0-3/mistral-7B-Instruct-v0.3.tar | `80b71fcb6416085bcb4efad86dfb4d52` |
@@ -54,15 +56,26 @@ cd $HOME/mistral-inference && poetry install .
 | Nemo Instruct | https://models.mistralcdn.com/mistral-nemo-2407/mistral-nemo-instruct-2407.tar | `296fbdf911cb88e6f0be74cd04827fe7` |
 | Mistral Large 2 | https://models.mistralcdn.com/mistral-large-2407/mistral-large-instruct-2407.tar | `fc602155f9e39151fba81fcaab2fa7c4` |
 
-Note: 
+Note:
 - **Important**:
   - `mixtral-8x22B-Instruct-v0.3.tar` is exactly the same as [Mixtral-8x22B-Instruct-v0.1](https://huggingface.co/mistralai/Mixtral-8x22B-Instruct-v0.1), only stored in `.safetensors` format
   - `mixtral-8x22B-v0.3.tar` is the same as [Mixtral-8x22B-v0.1](https://huggingface.co/mistralai/Mixtral-8x22B-v0.1), but has an extended vocabulary of 32768 tokens.
   - `codestral-22B-v0.1.tar` has a custom non-commercial license, called [Mistral AI Non-Production (MNPL) License](https://mistral.ai/licenses/MNPL-0.1.md)
   - `mistral-large-instruct-2407.tar` has a custom non-commercial license, called [Mistral AI Research (MRL) License](https://mistral.ai/licenses/MRL-0.1.md)
-- All of the listed models above support function calling. For example, Mistral 7B Base/Instruct v3 is a minor update to Mistral 7B Base/Instruct v2,  with the addition of function calling capabilities. 
-- The "coming soon" models will include function calling as well. 
+- All of the listed models above support function calling. For example, Mistral 7B Base/Instruct v3 is a minor update to Mistral 7B Base/Instruct v2,  with the addition of function calling capabilities.
+- The "coming soon" models will include function calling as well.
 - You can download the previous versions of our models from our [docs](https://docs.mistral.ai/getting-started/open_weight_models/#downloading).
+
+### From Hugging Face Hub
+
+| Name        | ID | URL |
+|-------------|-------|-------|
+| Pixtral Large Instruct | mistralai/Pixtral-Large-Instruct-2411 | https://huggingface.co/mistralai/Pixtral-Large-Instruct-2411 |
+| Pixtral 12B Base | mistralai/Pixtral-12B-Base-2409 | https://huggingface.co/mistralai/Pixtral-12B-Base-2409 |
+| Pixtral 12B | mistralai/Pixtral-12B-2409 | https://huggingface.co/mistralai/Pixtral-12B-2409 |
+| Mistral Small 3.1 24B Base | mistralai/Mistral-Small-3.1-24B-Base-2503 | https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Base-2503
+| Mistral Small 3.1 24B Instruct | mistralai/Mistral-Small-3.1-24B-Instruct-2503 | https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503 |
+
 
 ### Usage
 
@@ -83,13 +96,34 @@ mkdir -p $12B_DIR
 tar -xf mistral-nemo-instruct-2407.tar -C $12B_DIR
 ```
 
-or 
+or
 
 ```sh
 export M8x7B_DIR=$MISTRAL_MODEL/8x7b_instruct
 wget https://models.mistralcdn.com/mixtral-8x7b-v0-1/Mixtral-8x7B-v0.1-Instruct.tar
 mkdir -p $M8x7B_DIR
 tar -xf Mixtral-8x7B-v0.1-Instruct.tar -C $M8x7B_DIR
+```
+
+For Hugging Face models' weights, here is an example to download [Mistral Small 3.1 24B Instruct](https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503):
+
+```python
+from pathlib import Path
+from huggingface_hub import snapshot_download
+
+
+mistral_models_path = Path.home().joinpath("mistral_models")
+
+model_path = mistral_models_path / "mistral-small-3.1-instruct"
+model_path.mkdir(parents=True, exist_ok=True)
+
+repo_id = "mistralai/Mistral-Small-3.1-24B-Instruct-2503"
+
+snapshot_download(
+    repo_id=repo_id,
+    allow_patterns=["params.json", "consolidated.safetensors", "tekken.json"],
+    local_dir=model_path,
+)
 ```
 
 ## Usage
@@ -170,7 +204,7 @@ To use [Codestral-Mamba](https://mistral.ai/news/codestral-mamba/) as a coding a
 Make sure `$7B_CODESTRAL_MAMBA` is set to a valid path to the downloaded codestral-mamba folder, e.g. `$HOME/mistral_models/mamba-codestral-7B-v0.1`.
 
 You then need to additionally install the following packages:
-  
+
 ```
 pip install packaging mamba-ssm causal-conv1d transformers
 ```
@@ -220,6 +254,44 @@ out_tokens, _ = generate([tokens], model, max_tokens=1024, temperature=0.35, eos
 result = tokenizer.instruct_tokenizer.tokenizer.decode(out_tokens[0])
 
 print(result)
+```
+
+- *Multimodal Instruction Following*:
+
+
+```python
+from pathlib import Path
+
+from huggingface_hub import snapshot_download
+from mistral_common.protocol.instruct.messages import ImageURLChunk, TextChunk
+from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
+from mistral_inference.generate import generate
+from mistral_inference.transformer import Transformer
+
+model_path = Path.home().joinpath("mistral_models") / "mistral-small-3.1-instruct" # change to extracted model
+
+tokenizer = MistralTokenizer.from_file(model_path / "tekken.json")
+model = Transformer.from_folder(model_path)
+
+url = "https://huggingface.co/datasets/patrickvonplaten/random_img/resolve/main/yosemite.png"
+prompt = "The above image presents an image of which park ? Please give the hints to identify the park."
+
+user_content = [ImageURLChunk(image_url=url), TextChunk(text=prompt)]
+
+tokenizer_output = tokenizer.instruct_tokenizer.encode_user_content(user_content, False)
+
+out_tokens, _ = generate(
+    [tokenizer_output.tokens],
+    model,
+    images=[tokenizer_output.images],
+    max_tokens=256,
+    temperature=0.35,
+    eos_id=tokenizer.instruct_tokenizer.tokenizer.eos_id,
+)
+result = tokenizer.decode(out_tokens[0])
+
+print("Prompt:", prompt)
+print("Completion:", result)
 ```
 
 - *Function Calling*:
@@ -298,7 +370,7 @@ print(middle)
 
 ### One-file-ref
 
-If you want a self-contained implementation, look at `one_file_ref.py`, or run it with 
+If you want a self-contained implementation, look at `one_file_ref.py`, or run it with
 
 ```
 python -m one_file_ref $M7B_DIR
