@@ -15,6 +15,7 @@ Blog Mathstral 7B: [https://mistral.ai/news/mathstral/](https://mistral.ai/news/
 Blog Nemo: [https://mistral.ai/news/mistral-nemo/](https://mistral.ai/news/mistral-nemo/) \
 Blog Mistral Large 2: [https://mistral.ai/news/mistral-large-2407/](https://mistral.ai/news/mistral-large-2407/) \
 Blog Pixtral 12B: [https://mistral.ai/news/pixtral-12b/](https://mistral.ai/news/pixtral-12b/)
+Blog Mistral Small 3.1: [https://mistral.ai/news/mistral-small-3-1/](https://mistral.ai/news/mistral-small-3-1/)
 
 Discord: [https://discord.com/invite/mistralai](https://discord.com/invite/mistralai)\
 Documentation: [https://docs.mistral.ai/](https://docs.mistral.ai/)\
