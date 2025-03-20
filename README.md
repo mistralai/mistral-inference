@@ -229,6 +229,19 @@ If you prompt it with *"Albert likes to surf every week. Each surfing session la
 
 You can then continue chatting afterwards, *e.g.* with *"How much would he spend in a year?"*.
 
+- **Chat with Mistral Small 3.1 24B Instruct**
+
+To use [Mistral Small 3.1 24B Instruct](https://mistral.ai/news/mistral-small-3-1/) as an assistant you can run the following command using `mistral-chat`.
+Make sure `$MISTRAL_SMALL_3_1_INSTRUCT` is set to a valid path to the downloaded codestral folder, e.g. `$HOME/mistral_models/mistral-small-3.1-instruct`
+
+```sh
+    mistral-chat $MISTRAL_SMALL_3_1_INSTRUCT --instruct --max_tokens 256
+```
+
+If you prompt it with *"The above image presents an image of which park ? Please give the hints to identify the park."* with the following image URL *https://huggingface.co/datasets/patrickvonplaten/random_img/resolve/main/yosemite.png*, the model should answer with the Yosemite park and give hints to identify it.
+
+You can then continue chatting afterwards, *e.g.* with *"What is the name of the lake in the image?"*. The model should respond that it is not a lake but a river.
+
 ### Python
 
 - *Instruction Following*:
@@ -279,14 +292,14 @@ prompt = "The above image presents an image of which park ? Please give the hint
 
 user_content = [ImageURLChunk(image_url=url), TextChunk(text=prompt)]
 
-tokenizer_output = tokenizer.instruct_tokenizer.encode_user_content(user_content, False)
+tokens, images = tokenizer.instruct_tokenizer.encode_user_content(user_content, False)
 
 out_tokens, _ = generate(
-    [tokenizer_output.tokens],
+    [tokens],
     model,
-    images=[tokenizer_output.images],
+    images=[images],
     max_tokens=256,
-    temperature=0.35,
+    temperature=0.15,
     eos_id=tokenizer.instruct_tokenizer.tokenizer.eos_id,
 )
 result = tokenizer.decode(out_tokens[0])

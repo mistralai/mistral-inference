@@ -153,7 +153,6 @@ class PatchMerger(nn.Module):
         self,
         vision_encoder_dim: int,
         spatial_merge_size: int,
-        use_mlp_bias: bool = False,
     ) -> None:
         super().__init__()
 
@@ -162,15 +161,11 @@ class PatchMerger(nn.Module):
         self.spatial_merge_size = spatial_merge_size
         self.mlp_input_dim = mlp_input_dim
 
-        self.merging_layer = nn.Linear(
-            mlp_input_dim,
-            vision_encoder_dim,
-            bias=use_mlp_bias,
-        )
+        self.merging_layer = nn.Linear(mlp_input_dim, vision_encoder_dim, bias=False)
 
     def forward(self, x: torch.Tensor, image_sizes: list[tuple[int, int]]) -> torch.Tensor:
         # image_sizes specified in tokens
-        assert sum([h * w for h, w in image_sizes]) == len(x)
+        assert sum([h * w for h, w in image_sizes]) == len(x), f"{sum([h * w for h, w in image_sizes])} != {len(x)}"
 
         # x is (N, vision_encoder_dim)
         x = self.permute(x, image_sizes)
@@ -202,10 +197,9 @@ class PatchMerger(nn.Module):
         sub_grids = get_sub_grids(
             x=x, image_sizes=image_sizes, spatial_merge_size=self.spatial_merge_size
         )  # list of [d x sub_grid_size x sub_grid_size x n_patches]
-        permuted_tensor: list[torch.Tensor] = []
-        for grid in sub_grids:
-            n_patches = grid.shape[-1]
-            permuted_tensor.append(grid.view(-1, n_patches).t())  # n_patches x d * sub_grid_size * sub_grid_size
+        permuted_tensor = [
+            grid.view(-1, grid.shape[-1]).t() for grid in sub_grids
+        ]  # n_patches x d * sub_grid_size * sub_grid_size
         return torch.cat(permuted_tensor, dim=0)  # (N / spatial_merge_size ** 2, d * spatial_merge_size ** 2)
 
 

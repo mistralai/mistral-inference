@@ -72,7 +72,6 @@ class Transformer(ModelBase, LoRALoaderMixin):
                     self.patch_merger = PatchMerger(
                         vision_encoder_dim=args.vision_encoder.hidden_size,
                         spatial_merge_size=args.vision_encoder.spatial_merge_size,
-                        use_mlp_bias=False,
                     )
 
         if pipeline_rank == num_pipeline_ranks - 1:
@@ -148,9 +147,9 @@ class Transformer(ModelBase, LoRALoaderMixin):
         seq_len = input_ids.shape[0]
 
         assert D_txt == D_img, f"Text features dim {D_txt} should be equal to image features dim {D_img}"
-        assert (
-            seq_len == N_txt + N_img
-        ), f"seq_len {seq_len} should be equal to N_txt + N_img {(N_txt, N_img, image_locations.sum().item())}"
+        assert seq_len == N_txt + N_img, (
+            f"seq_len {seq_len} should be equal to N_txt + N_img {(N_txt, N_img, image_locations.sum().item())}"
+        )
 
         combined_features = torch.empty(
             (seq_len, D_txt),
@@ -173,9 +172,9 @@ class Transformer(ModelBase, LoRALoaderMixin):
         If doing pipeline parallelism, this will return the activations of the last layer of this stage.
         For the last stage, this will return the normalized final embeddings.
         """
-        assert (
-            len(seqlens) <= self.args.max_batch_size
-        ), f"Max batch size is {self.args.max_batch_size}, got batch size of {len(seqlens)}"
+        assert len(seqlens) <= self.args.max_batch_size, (
+            f"Max batch size is {self.args.max_batch_size}, got batch size of {len(seqlens)}"
+        )
         (num_toks,) = input_ids.shape
         assert sum(seqlens) == num_toks, (sum(seqlens), num_toks)
 
@@ -322,12 +321,12 @@ class Transformer(ModelBase, LoRALoaderMixin):
         pt_model_file = Path(folder) / "consolidated.00.pth"
         safetensors_model_file = Path(folder) / "consolidated.safetensors"
 
-        assert (
-            pt_model_file.exists() or safetensors_model_file.exists()
-        ), f"Make sure either {pt_model_file} or {safetensors_model_file} exists"
-        assert not (
-            pt_model_file.exists() and safetensors_model_file.exists()
-        ), f"Both {pt_model_file} and {safetensors_model_file} cannot exist"
+        assert pt_model_file.exists() or safetensors_model_file.exists(), (
+            f"Make sure either {pt_model_file} or {safetensors_model_file} exists"
+        )
+        assert not (pt_model_file.exists() and safetensors_model_file.exists()), (
+            f"Both {pt_model_file} and {safetensors_model_file} cannot exist"
+        )
 
         if pt_model_file.exists():
             loaded = torch.load(str(pt_model_file), mmap=True)
