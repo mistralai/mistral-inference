@@ -232,7 +232,7 @@ You can then continue chatting afterwards, *e.g.* with *"How much would he spend
 - **Chat with Mistral Small 3.1 24B Instruct**
 
 To use [Mistral Small 3.1 24B Instruct](https://mistral.ai/news/mistral-small-3-1/) as an assistant you can run the following command using `mistral-chat`.
-Make sure `$MISTRAL_SMALL_3_1_INSTRUCT` is set to a valid path to the downloaded codestral folder, e.g. `$HOME/mistral_models/mistral-small-3.1-instruct`
+Make sure `$MISTRAL_SMALL_3_1_INSTRUCT` is set to a valid path to the downloaded mistral small folder, e.g. `$HOME/mistral_models/mistral-small-3.1-instruct`
 
 ```sh
     mistral-chat $MISTRAL_SMALL_3_1_INSTRUCT --instruct --max_tokens 256
