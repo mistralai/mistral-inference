@@ -9,13 +9,13 @@ import safetensors.torch
 import torch
 from torch import nn
 
-from mistral_inference.args import TransformerArgs
+from mistral_inference.args import PATCH_MERGE, TransformerArgs
 from mistral_inference.cache import BufferCache, CacheInputMetadata
 from mistral_inference.lora import LoRALoaderMixin
 from mistral_inference.model import ModelBase
 from mistral_inference.rope import precompute_freqs_cis
 from mistral_inference.transformer_layers import RMSNorm, TransformerBlock
-from mistral_inference.vision_encoder import VisionLanguageAdapter, VisionTransformer
+from mistral_inference.vision_encoder import PatchMerger, VisionLanguageAdapter, VisionTransformer
 
 
 @dataclass
@@ -58,9 +58,22 @@ class Transformer(ModelBase, LoRALoaderMixin):
 
             self.vision_encoder: Optional[VisionTransformer] = None
             self.vision_language_adapter: Optional[VisionLanguageAdapter] = None
+
             if args.vision_encoder is not None:
                 self.vision_encoder = VisionTransformer(args.vision_encoder)
-                self.vision_language_adapter = VisionLanguageAdapter(args.vision_encoder.hidden_size, args.dim)
+                self.vision_language_adapter = VisionLanguageAdapter(
+                    args.vision_encoder.hidden_size, args.dim, args.vision_encoder.adapter_bias
+                )
+
+                if args.vision_encoder.add_pre_mm_projector_layer_norm:
+                    self.pre_mm_projector_norm = RMSNorm(args.vision_encoder.hidden_size, eps=1e-5)
+
+                if args.vision_encoder.mm_projector_id == PATCH_MERGE:
+                    self.patch_merger = PatchMerger(
+                        vision_encoder_dim=args.vision_encoder.hidden_size,
+                        spatial_merge_size=args.vision_encoder.spatial_merge_size,
+                    )
+
         if pipeline_rank == num_pipeline_ranks - 1:
             self.norm = RMSNorm(args.dim, eps=args.norm_eps)
             self.output = nn.Linear(args.dim, args.vocab_size, bias=False)
@@ -106,7 +119,7 @@ class Transformer(ModelBase, LoRALoaderMixin):
             self._precomputed_freqs_cis = self._precomputed_freqs_cis.to(device=self.device)
         return self._precomputed_freqs_cis
 
-    def embed_vision_language_features(self, input_ids: torch.Tensor, images: List[torch.tensor]) -> torch.Tensor:  # type: ignore[valid-type]
+    def embed_vision_language_features(self, input_ids: torch.Tensor, images: List[torch.Tensor]) -> torch.Tensor:
         assert self.tok_embeddings is not None
         assert self.vision_encoder is not None
         assert self.vision_language_adapter is not None
@@ -115,16 +128,28 @@ class Transformer(ModelBase, LoRALoaderMixin):
         text_locations = input_ids != self.args.vision_encoder.image_token_id
         image_locations = input_ids == self.args.vision_encoder.image_token_id
         text_features = self.tok_embeddings(input_ids[text_locations])
-        image_features = self.vision_language_adapter(self.vision_encoder(images))
 
-        seq_len = input_ids.shape[0]
+        image_features = self.vision_encoder(images)
+
+        if self.args.vision_encoder.add_pre_mm_projector_layer_norm:
+            image_features = self.pre_mm_projector_norm(image_features)
+
+        if self.args.vision_encoder.mm_projector_id == PATCH_MERGE:
+            patch_size = self.args.vision_encoder.patch_size
+            img_patch_dims = [(img.shape[1] // patch_size, img.shape[2] // patch_size) for img in images]
+            image_features = self.patch_merger(image_features, image_sizes=img_patch_dims)
+
+        image_features = self.vision_language_adapter(image_features)
+
         N_txt, D_txt = text_features.shape
         N_img, D_img = image_features.shape
 
+        seq_len = input_ids.shape[0]
+
         assert D_txt == D_img, f"Text features dim {D_txt} should be equal to image features dim {D_img}"
-        assert (
-            seq_len == N_txt + N_img
-        ), f"seq_len {seq_len} should be equal to N_txt + N_img {(N_txt, N_img, image_locations.sum().item())}"
+        assert seq_len == N_txt + N_img, (
+            f"seq_len {seq_len} should be equal to N_txt + N_img {(N_txt, N_img, image_locations.sum().item())}"
+        )
 
         combined_features = torch.empty(
             (seq_len, D_txt),
@@ -147,9 +172,9 @@ class Transformer(ModelBase, LoRALoaderMixin):
         If doing pipeline parallelism, this will return the activations of the last layer of this stage.
         For the last stage, this will return the normalized final embeddings.
         """
-        assert (
-            len(seqlens) <= self.args.max_batch_size
-        ), f"Max batch size is {self.args.max_batch_size}, got batch size of {len(seqlens)}"
+        assert len(seqlens) <= self.args.max_batch_size, (
+            f"Max batch size is {self.args.max_batch_size}, got batch size of {len(seqlens)}"
+        )
         (num_toks,) = input_ids.shape
         assert sum(seqlens) == num_toks, (sum(seqlens), num_toks)
 
@@ -251,9 +276,19 @@ class Transformer(ModelBase, LoRALoaderMixin):
                         self.pipeline_rank,
                     )
                     skipped.add(k)
-            elif k.startswith("vision_encoder") or k.startswith("vision_language_adapter"):
-                assert not self.pipeline_rank
-                state_to_load[k] = v
+            elif any(
+                k.startswith(key)
+                for key in ["vision_encoder", "vision_language_adapter", "patch_merger", "pre_mm_projector_norm"]
+            ):
+                if self.pipeline_rank == 0:
+                    state_to_load[k] = v
+                else:
+                    logging.debug(
+                        "Skipping parameter %s at pipeline rank %d",
+                        k,
+                        self.pipeline_rank,
+                    )
+                    skipped.add(k)
             else:
                 raise ValueError(f"Unexpected key {k}")
         assert set(state_dict.keys()) == skipped.union(set(state_to_load.keys()))
@@ -286,12 +321,12 @@ class Transformer(ModelBase, LoRALoaderMixin):
         pt_model_file = Path(folder) / "consolidated.00.pth"
         safetensors_model_file = Path(folder) / "consolidated.safetensors"
 
-        assert (
-            pt_model_file.exists() or safetensors_model_file.exists()
-        ), f"Make sure either {pt_model_file} or {safetensors_model_file} exists"
-        assert not (
-            pt_model_file.exists() and safetensors_model_file.exists()
-        ), f"Both {pt_model_file} and {safetensors_model_file} cannot exist"
+        assert pt_model_file.exists() or safetensors_model_file.exists(), (
+            f"Make sure either {pt_model_file} or {safetensors_model_file} exists"
+        )
+        assert not (pt_model_file.exists() and safetensors_model_file.exists()), (
+            f"Both {pt_model_file} and {safetensors_model_file} cannot exist"
+        )
 
         if pt_model_file.exists():
             loaded = torch.load(str(pt_model_file), mmap=True)
