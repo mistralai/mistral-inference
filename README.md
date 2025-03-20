@@ -382,35 +382,6 @@ middle = result.split(suffix)[0].strip()
 print(middle)
 ```
 
-### One-file-ref
-
-If you want a self-contained implementation, look at `one_file_ref.py`, or run it with
-
-```
-python -m one_file_ref $M7B_DIR
-```
-
-which should give something along the following lines:
-
-```
-This is a test of the emergency broadcast system. This is only a test.
-
-If this were a real emergency, you would be told what to do.
-
-This is a test
-=====================
-This is another test of the new blogging software. I’m not sure if I’m going to keep it or not. I’m not sure if I’m going to keep
-=====================
-This is a third test, mistral AI is very good at testing. 🙂
-
-This is a third test, mistral AI is very good at testing. 🙂
-
-This
-=====================
-```
-
-**Note**: To run self-contained implementations, you need to do a local installation.
-
 ### Test
 
 To run logits equivalence:
