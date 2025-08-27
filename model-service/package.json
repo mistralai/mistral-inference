@@ -1,0 +1,20 @@
+{
+  "name": "reentry-model-service",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server.js",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "pm2": "pm2 start ecosystem.config.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
