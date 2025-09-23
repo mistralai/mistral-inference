@@ -1,10 +1,10 @@
-[tool.poetry]
-name = "mistral_inference"
-version = "1.6.0"
+[project]
+name = "mistinf"
+version = "0.0.1"
 description = ""
-authors = ["bam4d <bam4d@mistral.ai>"]
 readme = "README.md"
 packages = [{ include = "mistral_inference", from = "src" }]
+requires-python = ">=3.12"
 
 [tool.ruff]
 lint.select = ["E", "F", "W", "Q", "I"]
@@ -22,7 +22,7 @@ warn_return_any = true
 warn_unused_ignores = true
 exclude = ["docs", "tools", "build"]
 
-[tool.poetry.dependencies]
+[dependencies]
 python = "^3.9.10"
 xformers = ">=0.0.24"
 simple-parsing = ">=0.1.5"
@@ -31,7 +31,7 @@ mistral_common = ">=1.5.4"
 safetensors = ">=0.4.0"
 pillow = ">=10.3.0"
 
-[tool.poetry.group.dev.dependencies]
+[dev.dependencies]
 types-protobuf = "4.24.0.20240129"
 mypy-protobuf = "^3.5.0"
 pytest = "7.4.4"
@@ -39,12 +39,12 @@ ruff = "^0.2.2"
 mypy = "^1.8.0"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.8.21,<0.9.0"]
+build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["./tests"]
 
-[tool.poetry.scripts]
+[scripts]
 mistral-chat = "mistral_inference.main:mistral_chat"
 mistral-demo = "mistral_inference.main:mistral_demo"
