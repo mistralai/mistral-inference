@@ -14,6 +14,11 @@ ENV TORCH_CUDA_ARCH_LIST "7.0;7.2;7.5;8.0;8.6;8.9;9.0"
 RUN pip3 install "torch==2.1.1"
 
 # This build is slow but NVIDIA does not provide binaries. Increase MAX_JOBS as needed.
+# MAX_JOBS needs to be passed into the container by ENV but is defined before as ARG to
+# make it possible to configure it at build time with "--build-arg MAX_JOBS=x".
+ARG MAX_JOBS
+ENV MAX_JOBS=$MAX_JOBS
+
 RUN pip3 install "git+https://github.com/stanford-futuredata/megablocks.git"
 RUN pip3 install "git+https://github.com/vllm-project/vllm.git"
 RUN pip3 install "xformers==0.0.23" "transformers==4.36.0" "fschat[model_worker]==0.2.34"
