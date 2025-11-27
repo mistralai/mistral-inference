@@ -40,12 +40,12 @@ def is_torchrun() -> bool:
 
 def load_tokenizer(model_path: Path) -> MistralTokenizer:
     tokenizer = [f for f in os.listdir(model_path) if is_tekken(model_path / f) or is_sentencepiece(model_path / f)]
-    assert (
-        len(tokenizer) > 0
-    ), f"No tokenizer in {model_path}, place a `tokenizer.model.[v1,v2,v3]` or `tekken.json` file in {model_path}."
-    assert (
-        len(tokenizer) == 1
-    ), f"Multiple tokenizers {', '.join(tokenizer)} found in `model_path`, make sure to only have one tokenizer"
+    assert len(tokenizer) > 0, (
+        f"No tokenizer in {model_path}, place a `tokenizer.model.[v1,v2,v3]` or `tekken.json` file in {model_path}."
+    )
+    assert len(tokenizer) == 1, (
+        f"Multiple tokenizers {', '.join(tokenizer)} found in `model_path`, make sure to only have one tokenizer"
+    )
 
     mistral_tokenizer = MistralTokenizer.from_file(str(model_path / tokenizer[0]))
 
@@ -169,15 +169,24 @@ def interactive(
         if not should_print:
             tokens = int(length_tensor.item()) * [0]
 
-        generate_fn = generate if isinstance(model, Transformer) else generate_mamba
-        generated_tokens, _ = generate_fn(  # type: ignore[operator]
-            [tokens],
-            model,
-            [images],
-            max_tokens=max_tokens,
-            temperature=temperature,
-            eos_id=tokenizer.eos_id,
-        )
+        if isinstance(model, Transformer):
+            generated_tokens, _ = generate(
+                [tokens],
+                model,
+                [images],
+                max_tokens=max_tokens,
+                temperature=temperature,
+                eos_id=tokenizer.eos_id,
+            )
+        else:
+            # Mamba models don't support images
+            generated_tokens, _ = generate_mamba(
+                [tokens],
+                model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                eos_id=tokenizer.eos_id,
+            )
 
         answer = tokenizer.decode(generated_tokens[0])
 
