@@ -403,7 +403,7 @@ Instructions to run the image can be found in the [official documentation](https
 ## Model platforms
 
 - Use Mistral models on [Mistral AI official API](https://console.mistral.ai/) (La Plateforme)
-- Use Mistral models via [cloud providers](https://docs.mistral.ai/deployment/cloud/overview/)
+- Use Mistral models via [cloud providers](https://docs.mistral.ai/deployment/cloud#cloud-providers)
 
 ## References
 
