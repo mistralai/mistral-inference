@@ -237,7 +237,7 @@ class BufferCache:
         subsequent_prefill = any(seqlen > 1 for seqlen in seqlens)
         if first_prefill:
             assert all([pos == 0 for pos in seqpos]), seqpos
-            mask = BlockDiagonalCausalMask.from_seqlens(seqlens).make_local_attention(cache_size)
+            mask = BlockDiagonalCausalMask.from_seqlens(seqlens, device=self.device).make_local_attention(cache_size)
         elif subsequent_prefill:
             assert self.kv_seqlens is not None
             mask = BlockDiagonalMask.from_seqlens(
@@ -245,12 +245,14 @@ class BufferCache:
                 kv_seqlen=[
                     s + cached_s.clamp(max=cache_size).item() for (s, cached_s) in zip(seqlens, self.kv_seqlens)
                 ],
+                device=self.device,
             ).make_local_attention_from_bottomright(cache_size)
         else:
             mask = BlockDiagonalCausalWithOffsetPaddedKeysMask.from_seqlens(
                 q_seqlen=seqlens,
                 kv_padding=cache_size,
                 kv_seqlen=(self.kv_seqlens + cached_elements).clamp(max=cache_size).tolist(),
+                device=self.device,
             )
         return CacheInputMetadata(
             positions=positions,
