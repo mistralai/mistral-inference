@@ -109,7 +109,8 @@ def interactive(
 ) -> None:
     if is_torchrun():
         torch.distributed.init_process_group()
-        torch.cuda.set_device(torch.distributed.get_rank())
+        local_rank = int(os.environ.get("LOCAL_RANK", str(torch.distributed.get_rank())))
+        torch.cuda.set_device(local_rank)
         should_print = torch.distributed.get_rank() == 0
 
         num_pipeline_ranks = torch.distributed.get_world_size()
@@ -164,6 +165,8 @@ def interactive(
             images = []
 
         if is_torchrun():
+            if dist.is_initialized() and dist.get_backend() == "nccl":
+                length_tensor = length_tensor.cuda()
             dist.broadcast(length_tensor, src=0)
 
         if not should_print:
@@ -208,7 +211,8 @@ def demo(
 ) -> None:
     if is_torchrun():
         torch.distributed.init_process_group()
-        torch.cuda.set_device(torch.distributed.get_rank())
+        local_rank = int(os.environ.get("LOCAL_RANK", str(torch.distributed.get_rank())))
+        torch.cuda.set_device(local_rank)
         should_print = torch.distributed.get_rank() == 0
 
         num_pipeline_ranks = torch.distributed.get_world_size()
