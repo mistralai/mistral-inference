@@ -120,28 +120,46 @@ def generate(
     # decode
     generated_tensors = []
     is_finished = torch.tensor([False for _ in range(B)])
+    finished_after_tokens = torch.tensor([-1 for _ in range(B)], dtype=torch.long)
 
     assert last_token_prelogits is not None
     for _ in range(max_tokens):
         next_token = sample(last_token_prelogits, temperature=temperature, top_p=0.8)
 
+        # Keep batch shape invariant for cache/forward while freezing already-finished rows.
         if eos_id is not None:
-            is_finished = is_finished | (next_token == eos_id).cpu()
-
-        if is_finished.all():
-            break
+            next_token[is_finished.to(device=next_token.device)] = eos_id
 
         last_token_logits = torch.log_softmax(last_token_prelogits, dim=-1)
         for i in range(B):
-            logprobs[i].append(last_token_logits[i, next_token[i]].item())
+            if not is_finished[i]:
+                logprobs[i].append(last_token_logits[i, next_token[i]].item())
 
         generated_tensors.append(next_token[:, None])
+
+        if eos_id is not None:
+            newly_finished = (~is_finished) & (next_token == eos_id).cpu()
+            finished_after_tokens[newly_finished] = len(generated_tensors)
+            is_finished = is_finished | newly_finished
+            if is_finished.all():
+                break
+
         last_token_prelogits = model.forward(next_token, seqlens=[1] * B, cache=cache)
         assert last_token_prelogits.shape == (B, V)
 
     generated_tokens: List[List[int]]
     if generated_tensors:
-        generated_tokens = torch.cat(generated_tensors, 1).tolist()
+        generated_tokens_tensor = torch.cat(generated_tensors, 1)
+        if eos_id is not None:
+            generated_tokens = []
+            generated_steps = generated_tokens_tensor.shape[1]
+            for i in range(B):
+                stop_at = finished_after_tokens[i].item()
+                if stop_at == -1:
+                    stop_at = generated_steps
+                generated_tokens.append(generated_tokens_tensor[i, :stop_at].tolist())
+        else:
+            generated_tokens = generated_tokens_tensor.tolist()
     else:
         generated_tokens = []
 
