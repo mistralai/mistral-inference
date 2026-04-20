@@ -44,7 +44,7 @@ def generate_mamba(
 def generate(
     encoded_prompts: List[List[int]],
     model: Transformer,
-    images: List[List[np.ndarray]] = [],
+    images: Optional[List[List[np.ndarray]]] = None,
     *,
     max_tokens: int,
     temperature: float,
@@ -52,7 +52,7 @@ def generate(
     eos_id: Optional[int] = None,
 ) -> Tuple[List[List[int]], List[List[float]]]:
     images_torch: List[List[torch.Tensor]] = []
-    if images:
+    if images is not None and len(images) > 0:
         assert chunk_size is None
         images_torch = [
             [torch.tensor(im, device=model.device, dtype=model.dtype) for im in images_for_sample]
