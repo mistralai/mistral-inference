@@ -1,8 +1,9 @@
 # Mistral Inference
-<a target="_blank" href="https://colab.research.google.com/github/mistralai/mistral-inference/blob/main/tutorials/getting_started.ipynb">
-  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
-</a>
 
+[![colab-logo]][colab-link]
+
+[colab-logo]: https://colab.research.google.com/assets/colab-badge.svg "Open in Colab"
+[colab-link]: https://colab.research.google.com/github/mistralai/mistral-inference/blob/main/tutorials/getting_started.ipynb
 
 This repository contains minimal code to run Mistral models.
 
@@ -27,13 +28,13 @@ Note: You will use a GPU to install `mistral-inference`, as it currently require
 
 ### PyPI
 
-```
+```sh
 pip install mistral-inference
 ```
 
 ### Local
 
-```
+```sh
 cd $HOME && git clone https://github.com/mistralai/mistral-inference
 cd $HOME/mistral-inference && poetry install .
 ```
@@ -42,22 +43,23 @@ cd $HOME/mistral-inference && poetry install .
 
 ### Direct links
 
-| Name        | Download | md5sum |
-|-------------|-------|-------|
-| 7B Instruct | https://models.mistralcdn.com/mistral-7b-v0-3/mistral-7B-Instruct-v0.3.tar | `80b71fcb6416085bcb4efad86dfb4d52` |
-| 8x7B Instruct | https://models.mistralcdn.com/mixtral-8x7b-v0-1/Mixtral-8x7B-v0.1-Instruct.tar (**Updated model coming soon!**) | `8e2d3930145dc43d3084396f49d38a3f` |
-| 8x22 Instruct | https://models.mistralcdn.com/mixtral-8x22b-v0-3/mixtral-8x22B-Instruct-v0.3.tar | `471a02a6902706a2f1e44a693813855b` |
-| 7B Base | https://models.mistralcdn.com/mistral-7b-v0-3/mistral-7B-v0.3.tar | `0663b293810d7571dad25dae2f2a5806` |
-| 8x7B |     **Updated model coming soon!**       | - |
-| 8x22B | https://models.mistralcdn.com/mixtral-8x22b-v0-3/mixtral-8x22B-v0.3.tar | `a2fa75117174f87d1197e3a4eb50371a` |
-| Codestral 22B | https://models.mistralcdn.com/codestral-22b-v0-1/codestral-22B-v0.1.tar | `1ea95d474a1d374b1d1b20a8e0159de3` |
-| Mathstral 7B | https://models.mistralcdn.com/mathstral-7b-v0-1/mathstral-7B-v0.1.tar | `5f05443e94489c261462794b1016f10b` |
-| Codestral-Mamba 7B | https://models.mistralcdn.com/codestral-mamba-7b-v0-1/codestral-mamba-7B-v0.1.tar | `d3993e4024d1395910c55db0d11db163` |
-| Nemo Base | https://models.mistralcdn.com/mistral-nemo-2407/mistral-nemo-base-2407.tar | `c5d079ac4b55fc1ae35f51f0a3c0eb83` |
-| Nemo Instruct | https://models.mistralcdn.com/mistral-nemo-2407/mistral-nemo-instruct-2407.tar | `296fbdf911cb88e6f0be74cd04827fe7` |
-| Mistral Large 2 | https://models.mistralcdn.com/mistral-large-2407/mistral-large-instruct-2407.tar | `fc602155f9e39151fba81fcaab2fa7c4` |
+| Name | Download | md5sum |
+| ---- | -------- | ------ |
+| 7B Instruct | <https://models.mistralcdn.com/mistral-7b-v0-3/mistral-7B-Instruct-v0.3.tar> | `80b71fcb6416085bcb4efad86dfb4d52` |
+| 8x7B Instruct | <https://models.mistralcdn.com/mixtral-8x7b-v0-1/Mixtral-8x7B-v0.1-Instruct.tar> (**Updated model coming soon!**) | `8e2d3930145dc43d3084396f49d38a3f` |
+| 8x22 Instruct | <https://models.mistralcdn.com/mixtral-8x22b-v0-3/mixtral-8x22B-Instruct-v0.3.tar> | `471a02a6902706a2f1e44a693813855b` |
+| 7B Base | <https://models.mistralcdn.com/mistral-7b-v0-3/mistral-7B-v0.3.tar> | `0663b293810d7571dad25dae2f2a5806` |
+| 8x7B | **Updated model coming soon!** | - |
+| 8x22B | <https://models.mistralcdn.com/mixtral-8x22b-v0-3/mixtral-8x22B-v0.3.tar> | `a2fa75117174f87d1197e3a4eb50371a` |
+| Codestral 22B | <https://models.mistralcdn.com/codestral-22b-v0-1/codestral-22B-v0.1.tar> | `1ea95d474a1d374b1d1b20a8e0159de3` |
+| Mathstral 7B | <https://models.mistralcdn.com/mathstral-7b-v0-1/mathstral-7B-v0.1.tar> | `5f05443e94489c261462794b1016f10b` |
+| Codestral-Mamba 7B | <https://models.mistralcdn.com/codestral-mamba-7b-v0-1/codestral-mamba-7B-v0.1.tar> | `d3993e4024d1395910c55db0d11db163` |
+| Nemo Base | <https://models.mistralcdn.com/mistral-nemo-2407/mistral-nemo-base-2407.tar> | `c5d079ac4b55fc1ae35f51f0a3c0eb83` |
+| Nemo Instruct | <https://models.mistralcdn.com/mistral-nemo-2407/mistral-nemo-instruct-2407.tar> | `296fbdf911cb88e6f0be74cd04827fe7` |
+| Mistral Large 2 | <https://models.mistralcdn.com/mistral-large-2407/mistral-large-instruct-2407.tar> | `fc602155f9e39151fba81fcaab2fa7c4` |
 
 Note:
+
 - **Important**:
   - `mixtral-8x22B-Instruct-v0.3.tar` is exactly the same as [Mixtral-8x22B-Instruct-v0.1](https://huggingface.co/mistralai/Mixtral-8x22B-Instruct-v0.1), only stored in `.safetensors` format
   - `mixtral-8x22B-v0.3.tar` is the same as [Mixtral-8x22B-v0.1](https://huggingface.co/mistralai/Mixtral-8x22B-v0.1), but has an extended vocabulary of 32768 tokens.
@@ -69,20 +71,20 @@ Note:
 
 ### From Hugging Face Hub
 
-| Name        | ID | URL |
-|-------------|-------|-------|
-| Pixtral Large Instruct | mistralai/Pixtral-Large-Instruct-2411 | https://huggingface.co/mistralai/Pixtral-Large-Instruct-2411 |
-| Pixtral 12B Base | mistralai/Pixtral-12B-Base-2409 | https://huggingface.co/mistralai/Pixtral-12B-Base-2409 |
-| Pixtral 12B | mistralai/Pixtral-12B-2409 | https://huggingface.co/mistralai/Pixtral-12B-2409 |
-| Mistral Small 3.1 24B Base | mistralai/Mistral-Small-3.1-24B-Base-2503 | https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Base-2503
-| Mistral Small 3.1 24B Instruct | mistralai/Mistral-Small-3.1-24B-Instruct-2503 | https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503 |
-
+| Name | ID | URL |
+| ---- | -- | --- |
+| Pixtral Large Instruct | mistralai/Pixtral-Large-Instruct-2411 | <https://huggingface.co/mistralai/Pixtral-Large-Instruct-2411> |
+| Pixtral 12B Base | mistralai/Pixtral-12B-Base-2409 | <https://huggingface.co/mistralai/Pixtral-12B-Base-2409> |
+| Pixtral 12B | mistralai/Pixtral-12B-2409 | <https://huggingface.co/mistralai/Pixtral-12B-2409> |
+| Mistral Small 3.1 24B Base | mistralai/Mistral-Small-3.1-24B-Base-2503 | <https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Base-2503>
+| Mistral Small 3.1 24B Instruct | mistralai/Mistral-Small-3.1-24B-Instruct-2503 | <https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503> |
 
 ### Usage
 
 **News!!!**: Mistral Large 2 is out. Read more about its capabilities [here](https://mistral.ai/news/mistral-large-2407/).
 
 Create a local folder to store models
+
 ```sh
 export MISTRAL_MODEL=$HOME/mistral_models
 mkdir -p $MISTRAL_MODEL
@@ -206,7 +208,7 @@ Make sure `$7B_CODESTRAL_MAMBA` is set to a valid path to the downloaded codestr
 
 You then need to additionally install the following packages:
 
-```
+```sh
 pip install packaging mamba-ssm causal-conv1d transformers
 ```
 
@@ -271,7 +273,6 @@ print(result)
 ```
 
 - *Multimodal Instruction Following*:
-
 
 ```python
 from pathlib import Path
@@ -353,7 +354,8 @@ print(result)
 - *Fill-in-the-middle (FIM)*:
 
 Make sure to have `mistral-common >= 1.2.0` installed:
-```
+
+```sh
 pip install --upgrade mistral-common
 ```
 
@@ -385,7 +387,8 @@ print(middle)
 ### Test
 
 To run logits equivalence:
-```
+
+```sh
 python -m pytest tests
 ```
 
@@ -393,12 +396,11 @@ python -m pytest tests
 
 The `deploy` folder contains code to build a [vLLM](https://github.com/vllm-project/vllm) image with the required dependencies to serve the Mistral AI model. In the image, the [transformers](https://github.com/huggingface/transformers/) library is used instead of the reference implementation. To build it:
 
-```bash
+```sh
 docker build deploy --build-arg MAX_JOBS=8
 ```
 
 Instructions to run the image can be found in the [official documentation](https://docs.mistral.ai/quickstart).
-
 
 ## Model platforms
 
