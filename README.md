@@ -76,7 +76,7 @@ Note:
 | Pixtral Large Instruct | mistralai/Pixtral-Large-Instruct-2411 | <https://huggingface.co/mistralai/Pixtral-Large-Instruct-2411> |
 | Pixtral 12B Base | mistralai/Pixtral-12B-Base-2409 | <https://huggingface.co/mistralai/Pixtral-12B-Base-2409> |
 | Pixtral 12B | mistralai/Pixtral-12B-2409 | <https://huggingface.co/mistralai/Pixtral-12B-2409> |
-| Mistral Small 3.1 24B Base | mistralai/Mistral-Small-3.1-24B-Base-2503 | <https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Base-2503>
+| Mistral Small 3.1 24B Base | mistralai/Mistral-Small-3.1-24B-Base-2503 | <https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Base-2503> |
 | Mistral Small 3.1 24B Instruct | mistralai/Mistral-Small-3.1-24B-Instruct-2503 | <https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503> |
 
 ### Usage
