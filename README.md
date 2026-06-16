@@ -1,4 +1,11 @@
 # Mistral Inference
+
+## ⚠️ Archived — no longer maintained
+
+This repository is archived and no longer actively maintained. We may launch a new library or a major update in the future if the community needs it or we believe we can bring value to the inference ecosystem.
+
+---
+
 <a target="_blank" href="https://colab.research.google.com/github/mistralai/mistral-inference/blob/main/tutorials/getting_started.ipynb">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
